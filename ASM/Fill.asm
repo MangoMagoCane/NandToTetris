@@ -41,7 +41,7 @@
   D=A
   @addr
   M=D
-(FILL_LOOP) foo
+(FILL_LOOP)
   @FILL_COLOR
   D=M
   @addr
@@ -69,4 +69,5 @@
 
 (END)
   @END
-  0;JMP
+  1;JMP
+  
