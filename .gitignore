@@ -1,3 +1,4 @@
 *.hack
+*.exe
 .vscode
 !.c
