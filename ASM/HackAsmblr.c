@@ -14,6 +14,17 @@ void printSymTab(uint16_t start_index);
 
 typedef unsigned int uint;
 
+typedef union instruction_t {
+    struct {
+        uint jump : 3;
+        uint dest: 3;
+        uint comp: 6;
+        uint a : 1;
+        uint opcode : 3;
+    } s;
+    uint16_t u;
+} instruction_t;
+
 typedef struct symbol_t {
     char* name;
     union {
@@ -25,34 +36,6 @@ typedef struct symbol_t {
     } value;
 } symbol_t;
 
-// typedef union{
-//     struct {
-//         struct {
-//             uint GT : 1;
-//             uint EQ : 1;
-//             uint LT : 1;
-//         } jump;
-//         struct {
-//             uint M : 1;
-//             uint D : 1;
-//             uint A : 1;
-//         } dest;
-//         uint comp: 6;
-//         uint a : 1;
-//         uint opcode : 3;
-//     } s;
-//     uint16_t u;
-// } instruction;
-typedef union instruction_t {
-    struct {
-        uint jump : 3;
-        uint dest: 3;
-        uint comp: 6;
-        uint a : 1;
-        uint opcode : 3;
-    } s;
-    uint16_t u;
-} instruction_t;
 
 struct comp_t {
     char* asmbly;
@@ -118,6 +101,13 @@ symbol_t predefined_symbols[] = {
     "THAT", 4, 1,
 };
 
+enum err {
+    INVALID_ARG_CNT,
+    INVALID_FILE,
+    INVALID_FILE_EXTNSN,
+    FAILED_MALLOC
+};
+
 #define INPUT_BUFSIZE 1024
 #define LINE_BUFSIZE 1024
 #define SYMBOL_TABLE_START_LEN 1024
@@ -126,21 +116,13 @@ symbol_t predefined_symbols[] = {
 #define COMPTAB_LEN sizeof(comptab) / sizeof(comptab[0])
 #define JUMPTAB_LEN sizeof(jumptab) / sizeof(jumptab[0])
 
+char input_buf[INPUT_BUFSIZE]; 
+char line_buf[LINE_BUFSIZE]; 
+
 int symtab_len = SYMBOL_TABLE_START_LEN;
 int symtab_next_entry;
 symbol_t* symtab;
 
-enum err {
-    INVALID_ARG_CNT,
-    INVALID_FILE,
-    INVALID_FILE_EXTNSN,
-    FAILED_MALLOC
-};
-
-char input_buf[INPUT_BUFSIZE]; 
-char line_buf[LINE_BUFSIZE]; 
-
-// TODO @INSTRUCTIONWITHNUMBER
 int main(int argc, char* argv[]) {
     FILE* f_input;
     FILE* f_output;
@@ -157,11 +139,6 @@ int main(int argc, char* argv[]) {
         goto exit;
     }
     memcpy(symtab, predefined_symbols, sizeof(predefined_symbols));
-
-    // printf("%d\n", insertSymbol("dog", 0b10101, false));
-    // printf("%d\n", insertSymbol("foo", 0b10101, true));
-    // printf("%d\n", insertSymbol("dog", 0b11111, true));
-    // printf("%d\n", insertSymbol("foo", 0b0, true));
 
     if (argc != 2) {
         fprintf(stderr, "usage: ./HackAsmblr file.asm");
@@ -191,7 +168,7 @@ int main(int argc, char* argv[]) {
         goto close_input;
     }
     // if ((f_tmp = tmpfile()) == NULL) {
-    if ((f_tmp = fopen("AsmblrTemp.txt", "r+")) == NULL) {
+    if ((f_tmp = fopen("AsmblrTemp.txt", "w+")) == NULL) {
         fprintf(stderr, "ERR: could not create internal temporary file errno: %d\n", errno);
         retval = INVALID_FILE; 
         goto close_output;
@@ -210,6 +187,7 @@ int main(int argc, char* argv[]) {
 
 close_tmp:
     fclose(f_tmp);
+    // remove("AsmblrTemp.txt");
 close_output:
     fclose(f_output);
 close_input:
@@ -245,12 +223,16 @@ int processor(FILE* f_output, FILE* f_input) {
         
         // A-instruction
         if (input_buf[0] == '@') {
-            for (int i = 0; i < symtab_next_entry; i++) {
-                if (strcmp(symtab[i].name, &input_buf[1]) == 0) {
-                    instruction.u |= symtab[i].value.u;
-                    instruction.u &= ~(1 << 15);
+            int value = strtol(&input_buf[1], &ibuf_p, 10);
+            if (&input_buf[1] == &ibuf_p[0]) {
+                for (int i = 0; i < symtab_next_entry; i++) {
+                    if (strcmp(symtab[i].name, &input_buf[1]) == 0) {
+                        value = symtab[i].value.u;
+                    }
                 }
             }
+            instruction.u |= value;
+            instruction.u &= ~(1 << 15);
             goto write_instruction;
         } 
         
@@ -376,7 +358,11 @@ int preprocessor(FILE* f_tmp, FILE* f_input) {
                 break;
             case '@':
                 *tbuf_p = '\0';
-                insertSymbol(&tmp_buf[1], 0, false);
+                char* strtol_p;
+                strtol(&tmp_buf[1], &strtol_p, 10);
+                if (&tmp_buf[1] == strtol_p) {
+                    insertSymbol(&tmp_buf[1], 0, false);
+                }
             default:
                 *tbuf_p++ = '\n';
                 *tbuf_p = '\0';
