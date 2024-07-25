@@ -41,7 +41,7 @@
   D=A
   @addr
   M=D
-(FILL_LOOP)
+(FILL_LOOP) foo
   @FILL_COLOR
   D=M
   @addr
@@ -59,7 +59,7 @@
   A=M
   0;JMP
 
-(KEYWAIT_ON)
+(KEYWAIT_ON) // doggy 
   @KBD
   D=M
   @RESET_SCREEN_VARS
