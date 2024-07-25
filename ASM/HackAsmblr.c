@@ -140,6 +140,7 @@ enum err {
 char input_buf[INPUT_BUFSIZE]; 
 char line_buf[LINE_BUFSIZE]; 
 
+// TODO @INSTRUCTIONWITHNUMBER
 int main(int argc, char* argv[]) {
     FILE* f_input;
     FILE* f_output;
@@ -233,95 +234,109 @@ int processor(FILE* f_output, FILE* f_input) {
         comp = 0;
         jump = 0;
         ibuf_p = input_buf;
-        
-        if (input_buf[0] == '@') {
-            strcpy(foo_buf, input_buf);
-        } else {
-            instruction.s.opcode |= 0b111;
-            for (i = 0; (c = input_buf[i]) != '\n' && c != '\0'; i++) {
-                switch (c) {
-                case '=':
-                    if (comp == 0) {
-                        comp = i + 1;
-                    } else {
-                        fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
-                        return 1;
-                    }
-                    break;
-                case ';':
-                    if (jump == 0) {
-                        jump = i + 1;
-                    } else {
-                        fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
-                        return 1;
-                    }
-                    break;
-                }
-            }
+
+        for (int i = 0; (c = input_buf[i]) != '\0'; i++) {
             if (c == '\n') {
                 input_buf[i] = '\0';
+                break;
             }
-            strcpy(foo_buf, input_buf);
+        }
+        strcpy(foo_buf, input_buf);
+        
+        // A-instruction
+        if (input_buf[0] == '@') {
+            for (int i = 0; i < symtab_next_entry; i++) {
+                if (strcmp(symtab[i].name, &input_buf[1]) == 0) {
+                    instruction.u |= symtab[i].value.u;
+                    instruction.u &= ~(1 << 15);
+                }
+            }
+            goto write_instruction;
+        } 
+        
+        // C-instruction
+        instruction.s.opcode |= 0b111;
+        for (i = 0; (c = input_buf[i]) != '\n' && c != '\0'; i++) {
+            switch (c) {
+            case '=':
+                if (comp == 0) {
+                    comp = i + 1;
+                } else {
+                    fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
+                    return 1;
+                }
+                break;
+            case ';':
+                if (jump == 0) {
+                    jump = i + 1;
+                } else {
+                    fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
+                    return 1;
+                }
+                break;
+            }
+        }
 
-            uint shift_val;
-            // set dest
-            if (comp > 0) {
-                for (int i = 0; (c = input_buf[i]) != '='; i++) {
-                    switch (c) {
-                    case 'M':
-                        shift_val = 0;
-                        break;
-                    case 'D':
-                        shift_val = 1;
-                        break;
-                    case 'A':
-                        shift_val = 2;
-                        break;
-                    default:
-                        fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
-                        return 1;
-                    }
-                    if ((instruction.s.dest) >> shift_val & 1) {
-                        fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
-                        return 1;
-                    }
-                    instruction.s.dest |= 1 << shift_val;
-                }
-            }
-
-            input_buf[i] = '\0';
-            // set jump 
-            if (jump) {
-                input_buf[jump-1] = '\0';
-                for (i = comp; (c = input_buf[i]) != '\n' && c != '\0'; i++) {
-                    if (c == 'M') {
-                        input_buf[i] = 'A'; 
-                        instruction.s.a = 1;
-                    }
-                }
-                input_buf[i] = '\0';
-                for (int i = 0; i < JUMPTAB_LEN; i++) {
-                    if (strcmp(jumptab[i].asmbly, &input_buf[jump]) == 0) {
-                        // printf("%-4s", &input_buf[jump]);
-                        instruction.s.jump |= jumptab[i].bits;
-                    } 
-                }
-            }
-            for (int i = 0; i < COMPTAB_LEN; i++) {
-                if (strcmp(comptab[i].asmbly, &input_buf[comp]) == 0) {
-                    instruction.s.comp |= comptab[i].bits;
+        uint shift_val;
+        // set dest
+        if (comp > 0) {
+            for (int i = 0; (c = input_buf[i]) != '='; i++) {
+                switch (c) {
+                case 'M':
+                    shift_val = 0;
                     break;
+                case 'D':
+                    shift_val = 1;
+                    break;
+                case 'A':
+                    shift_val = 2;
+                    break;
+                default:
+                    fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
+                    return 1;
+                }
+                if ((instruction.s.dest) >> shift_val & 1) {
+                    fprintf(stderr, "ERR: invalid line %snumber %d\n", input_buf, line_num);
+                    return 1;
+                }
+                instruction.s.dest |= 1 << shift_val;
+            }
+        }
+
+        input_buf[i] = '\0';
+        // set jump 
+        if (jump) {
+            input_buf[jump-1] = '\0';
+            for (int i = 0; i < JUMPTAB_LEN; i++) {
+                if (strcmp(jumptab[i].asmbly, &input_buf[jump]) == 0) {
+                    // printf("%-4s", &input_buf[jump]);
+                    instruction.s.jump |= jumptab[i].bits;
                 } 
             }
-        } 
-        printf("%-18s", foo_buf);
-        // printf("%d %d %s", instruction.s.dest, instruction.s.jump, foo_buf);
-        for (int i = 15; i >= 0 ; i--) {
-            printf("%d", instruction.u >> i & 1);
         }
-        printf("\n");
-    } 
-
+        for (i = comp; (c = input_buf[i]) != '\n' && c != '\0'; i++) {
+            if (c == 'M') {
+                input_buf[i] = 'A'; 
+                instruction.s.a |= 0b1;
+            }
+        }
+        for (int i = 0; i < COMPTAB_LEN; i++) {
+            if (strcmp(comptab[i].asmbly, &input_buf[comp]) == 0) {
+                instruction.s.comp |= comptab[i].bits;
+                break;
+            } 
+        }
+write_instruction:
+        // printf("%// d %s\n", instruction.s.dest, instruction.s.jump, foo_buf);
+        char bit_print_buf[18] = {0};
+        for (int i = 0; i < 16; i++) {
+            bit_print_buf[15-i] = ((instruction.u >> i) & 1) + '0';
+        }
+        bit_print_buf[16] = '\n';
+        bit_print_buf[17] = '\0';
+        // printf("%-18s%s", foo_buf, bit_print_buf);
+        fprintf(f_output, bit_print_buf);
+    }
    return 0;
 }
 
@@ -442,8 +457,8 @@ void printSymTab(uint16_t start_index) {
         }
     }
 
-    for (int i = 0; i < symtab_next_entry; i++) {
-        for (int j = start_index; j < 16; j++) {
+    for (int i = start_index; i < symtab_next_entry; i++) {
+        for (int j = 0; j < 16; j++) {
             bit_print_buf[15-j] = ((symtab[i].value.u >> j) & 1) + '0';
         }
         if (symtab[i].name == 0) {
