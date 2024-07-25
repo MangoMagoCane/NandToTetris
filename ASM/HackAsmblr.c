@@ -36,44 +36,15 @@ typedef struct symbol_t {
     } value;
 } symbol_t;
 
-
-struct comp_t {
+typedef struct comp_t {
     char* asmbly;
     uint bits : 6;
-} comptab[] = {
-    "0",   0b101010,
-    "1",   0b111111,
-    "-1",  0b111010,
-    "D",   0b001100,
-    "A",   0b110000,
-    "!D",  0b001101,
-    "!A",  0b110001,
-    "-D",  0b001111,
-    "-A",  0b110011,
-    "D+1", 0b011111,
-    "A+1", 0b110111,
-    "D-1", 0b001110,
-    "A-1", 0b110010,
-    "D+A", 0b000010,
-    "D-A", 0b010011,
-    "A-D", 0b000111,
-    "D&A", 0b000000,
-    "D|A", 0b010101,
-};
+} comp_t; 
 
-struct jump_t {
+typedef struct jump_t {
     char* asmbly;
     uint bits : 3;
-} jumptab[] = {
-    "\0",  0b000,
-    "JGT", 0b001,
-    "JEQ", 0b010,
-    "JGE", 0b011,
-    "JLT", 0b100,
-    "JNE", 0b101,
-    "JLE", 0b110,
-    "JMP", 0b111
-};
+} jump_t;
 
 symbol_t predefined_symbols[] = {
     "R0", 0, 1, 
@@ -99,6 +70,38 @@ symbol_t predefined_symbols[] = {
     "ARG", 2, 1,
     "THIS", 3, 1,
     "THAT", 4, 1,
+};
+
+comp_t comptab[] = {
+    "0",   0b101010,
+    "1",   0b111111,
+    "-1",  0b111010,
+    "D",   0b001100,
+    "A",   0b110000,
+    "!D",  0b001101,
+    "!A",  0b110001,
+    "-D",  0b001111,
+    "-A",  0b110011,
+    "D+1", 0b011111,
+    "A+1", 0b110111,
+    "D-1", 0b001110,
+    "A-1", 0b110010,
+    "D+A", 0b000010,
+    "D-A", 0b010011,
+    "A-D", 0b000111,
+    "D&A", 0b000000,
+    "D|A", 0b010101,
+};
+
+jump_t jumptab[] = {
+    "\0",  0b000,
+    "JGT", 0b001,
+    "JEQ", 0b010,
+    "JGE", 0b011,
+    "JLT", 0b100,
+    "JNE", 0b101,
+    "JLE", 0b110,
+    "JMP", 0b111
 };
 
 enum err {
@@ -284,8 +287,8 @@ int processor(FILE* f_output, FILE* f_input) {
                 instruction.s.dest |= 1 << shift_val;
             }
         }
-
         input_buf[i] = '\0';
+
         // set jump 
         if (jump) {
             input_buf[jump-1] = '\0';
@@ -296,6 +299,8 @@ int processor(FILE* f_output, FILE* f_input) {
                 } 
             }
         }
+    
+        // set comp
         for (i = comp; (c = input_buf[i]) != '\n' && c != '\0'; i++) {
             if (c == 'M') {
                 input_buf[i] = 'A'; 
@@ -308,32 +313,31 @@ int processor(FILE* f_output, FILE* f_input) {
                 break;
             } 
         }
-write_instruction:
-        // printf("%// d %s\n", instruction.s.dest, instruction.s.jump, foo_buf);
+        
+    write_instruction:
         char bit_print_buf[18] = {0};
         for (int i = 0; i < 16; i++) {
             bit_print_buf[15-i] = ((instruction.u >> i) & 1) + '0';
         }
         bit_print_buf[16] = '\n';
         bit_print_buf[17] = '\0';
-        // printf("%-18s%s", foo_buf, bit_print_buf);
         fprintf(f_output, bit_print_buf);
     }
-   return 0;
+    return 0;
 }
 
 int preprocessor(FILE* f_tmp, FILE* f_input) {
     int symtab_next_var = SYMBOL_VAR_START_ADD;
-    char tmp_buf[INPUT_BUFSIZE + 1], curr, next, c;
+    char tmp_buf[INPUT_BUFSIZE + 1], curr, next;
     char* ibuf_p;
     char* tbuf_p;
     int ROM_line_num = 0;
     
     for (int line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; line_num++) {
-        // printf("%s", input_buf);
         ibuf_p = input_buf;
         tbuf_p = tmp_buf;
         curr = *ibuf_p;
+
         while (next = *++ibuf_p) {
             if (curr == '/' && next == '/') {
                 break;
@@ -346,6 +350,7 @@ int preprocessor(FILE* f_tmp, FILE* f_input) {
         if (tbuf_p == tmp_buf) {
             continue;
         }
+
         switch (tmp_buf[0]) {
             case '(':
                 *--ibuf_p = '\0'; 
@@ -383,22 +388,22 @@ int insertSymbol(char* name, uint16_t value, bool labeled) {
     bool symbol_in_table = false;
     symbol_t* next_sym_p;
     char* name_buf;
+    int symtab_i;
 
-    int i;
-    for (i = 0; i < symtab_next_entry; i++) {
-        if (strcmp(name, symtab[i].name) == 0) {
+    for (symtab_i = 0; symtab_i < symtab_next_entry; symtab_i++) {
+        if (strcmp(name, symtab[symtab_i].name) == 0) {
             symbol_in_table = true;
             break;
         }
     }
 
     if (symbol_in_table) {
-        if (symtab[i].value.s.labeled) {
+        if (symtab[symtab_i].value.s.labeled) {
             return labeled ? 1 : 0;
         }
         if (labeled) {
-            symtab[i].value.s.data = value;
-            symtab[i].value.s.labeled = true;
+            symtab[symtab_i].value.s.data = value;
+            symtab[symtab_i].value.s.labeled = true;
         }
         return 0;
     }
