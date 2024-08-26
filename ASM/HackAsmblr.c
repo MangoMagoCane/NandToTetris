@@ -210,7 +210,6 @@ int processor(FILE* f_output, FILE* f_input)
     int comp;
     int jump;
     int i;
-    char foo_buf[1024];
 
     for (int line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; line_num++) {
         instruction.u = 0;
@@ -224,7 +223,6 @@ int processor(FILE* f_output, FILE* f_input)
                 break;
             }
         }
-        strcpy(foo_buf, input_buf);
 
         // A-instruction
         if (input_buf[0] == '@') {
