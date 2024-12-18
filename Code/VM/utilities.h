@@ -42,20 +42,9 @@ void reverse(char* s)
 
 char* getFilename(char* src)
 {
-    char* fname = malloc(MAX_PATH * sizeof (char));
-    char* fp = fname;
-    char* np;
-
-    for (np = src; !(*np == '\n' || *np == '.'); ++np) {}
-    np--;
-
-    while (*np != '\\') {
-        *fp++ = *np--;
-    }
-    *fp = '\0';
-
-    reverse(fname);
-    return fname;
+    char* forward_p = strrchr(src, '/');
+    char* back_p = strrchr(src, '\\');
+    return &((forward_p > back_p) ? forward_p : back_p)[1];
 }
 
 #endif // NAND2TETRIS_UTILITIES

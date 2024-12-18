@@ -1,74 +1,111 @@
+// gcc VMTranslator.c -Wall -Wextra -g -o VMTranslator
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <errno.h>
-#include <stdint.h>
+#include <uchar.h>
+#include "VMWriters.c"
+#include "utilities.h"
 
-// c-2: @SP AM=M-1 D=M A=A-1
-// add: c-2 M=M+D
-// sub: c-2 M=M-D
-// neg: @SP A=M-1 M=!M
+int processor(FILE* f_output, FILE* f_input, char* filename);
+ 
+#define TOK_BUFSIZE 16
+#define INPUT_BUFSIZE 1024
 
-// and: c-2 M=M&D
-// or:  c-2 M=M|D
-// notL @SP A=M-1 M=-M
+int main(int argc, char* argv[])
+{
+    FILE* f_input;
+    FILE* f_output;
+    char* filename = getFilename(argv[1]);
+    int retval = 0;
 
-// logical structure (eq, gt, lt), R13=jump number:
-//  @{instruction_num+14} D=A @R13 M=D c-2 D=M-D
-//  @t_jmp D;{JEQ, JGT, JLT} @f_jmp 0;jmp {jump dest}
+    if (argc != 2) {
+        fprintf(stderr, "usage: ./VMTranslator file.vm\n");
+        retval = INVALID_ARG_CNT;
+        goto exit;
+    }
 
-// push-D: @SP M=M+1 A=M-1 M=D
-// pop-D: @SP AM=M-1 D=M
-// pop-R13: {pop-D} @R13 M=D
+    char* extension_p;
+    if (checkExtension(filename, &extension_p, "vm") == 0) {
+        fprintf(stderr, "file: %s has invalid extension: %s\n", filename, extension_p);
+        retval = INVALID_FILE_EXTNSN;
+        goto exit;
+    }
+    if ((f_input = fopen(argv[1], "r")) == NULL) {
+        fprintf(stderr, "cannot open: %s\n", argv[1]);
+        retval = INVALID_FILE;
+        goto exit;
+    }
+    extension_p[0] = '\0';
 
-// {LCL, ARG, THIS, THAT}
-// push basic-4 i: @{i} D=A @{SEG} A=D+M D=M {push-D}
-// pop  basic-4 i: {pop-R13} @{i} D=A @{SEG} D=D+M @R14 M=D @R13 D=M @R14 A=M M=D
+    char* output_name = malloc(strlen(argv[1]) + 6);
+    sprintf(output_name, "%s%s", argv[1], ".asm");
+    f_output = fopen(output_name, "w");
+    free(output_name);
 
-// 0 = THIS, 1 = THAT
-// push pointer i: @{THIS, THAT} D=M {push-D}
-// pop  pointer i: {pop-D} @{THIS, THAT} M=D
+    if (f_output == NULL) {
+        fprintf(stderr, "cannot open output file: %s\n", argv[1]);
+        retval = INVALID_FILE;
+        goto close_input;
+    }
+    if (processor(f_output, f_input, filename) != 0) {
+        fprintf(stderr, "ERR: processor\n");
+    }
 
-// 0<=i<=7
-// push temp i: @{i+5} D=M {push-D}
-// pop  temp i: {pop-D} @{i+5} M=D
-
-// push constant i: @{i} D=A {push-D}
-
-// limit 240
-// push static i: @{FileName.i} D=M push-D
-// pop  static i: {pop-D} @{FileName.i} M=D
-
-
-token_t pointer_segment_tokens[] = {
-    "local", { "@LCL" },
-    "argument", { "@ARG" },
-    "this", { "@THIS" },
-    "that", { "@THAT" }
-};
-
-int main(int argc, char* argv) {
+    fclose(f_output);
+close_input:
+    fclose(f_input);
+exit:
+    exit(retval);
 }
 
+int processor(FILE* f_output, FILE* f_input, char* filename)
+{
+    char input_buf[INPUT_BUFSIZE];
+    char strtok_buf[INPUT_BUFSIZE];
+    setWriterFile(f_output, filename);
+    for (uint line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; ++line_num) {
+        input_buf[strcspn(input_buf, "\n")] = '\0';
+        strncpy(strtok_buf, input_buf, sizeof (strtok_buf));
 
+        char* c_p = strtok(strtok_buf, " \t\n"); // command  pop   call
+        char* s_p = strtok(NULL, " \t\n");       // segment  local power
+        char* i_p = strtok(NULL, " \t\n");       // index    3
+        char* o_p = strtok(NULL, " \t\n");       // overflow random
+        bool null_index_p = false;
 
-// (end)
-// @end
-// 0;jmp
-// (t_jmp)
-// @0 // only works if @SP is RAM[0]
-// D=!A
-// A=M-1
-// M=D
-// @R13
-// A=M
-// 0;jmp
-// (f_jmp)
-// @0
-// D=A
-// A=M-1
-// M=D
-// @R13
-// A=M
-// 0;jmp
+        if (c_p == NULL || (c_p[0] == '/' && c_p[1] == '/')) {
+            continue;
+        } else if (s_p != NULL && s_p[0] == '/' && s_p[1] == '/') {
+            i_p[0] = '\0';
+            null_index_p = true;
+        } else if (null_index_p || (s_p != NULL && s_p[0] == '/' && s_p[1] == '/')) {
+            i_p[0] = '\0';
+        }
+
+        uint tok_count = (c_p ? 1 : 0) + (s_p ? 1 : 0) + (i_p ? 1 : 0) + (o_p ? 1 : 0);
+        int writer_retval;
+        // printf("%d\n", tok_count);
+        switch (tok_count) {
+        case 1:
+            writer_retval = writeArithLogical(c_p);
+            break;
+        case 3:
+            writer_retval = writePushPop(c_p, s_p, i_p);
+            break;
+        default:
+            fprintf(stderr, "ERR: Invalid syntax on line: %d\n\"%s\"\n", line_num, input_buf);
+            return -1;
+        }
+
+        if (writer_retval == -1) {
+            fprintf(stderr, "%s\n", input_buf);
+            return -1;
+        }
+    }
+    endWriterFile();
+
+    return 0;
+}

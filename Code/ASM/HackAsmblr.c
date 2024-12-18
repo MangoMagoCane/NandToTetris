@@ -104,25 +104,15 @@ jump_t jumptab[] = {
     { "JMP", 0b111 }
 };
 
-enum err {
-    INVALID_ARG_CNT,
-    INVALID_FILE,
-    INVALID_FILE_EXTNSN,
-    FAILED_MALLOC
-};
-
 #define INPUT_BUFSIZE 1024
 #define LINE_BUFSIZE 1024
 #define SYMTAB_START_LEN 1024
 #define SYMTAB_MAX_UNLABELED 256
 #define SYMTAB_MIN_UNLABELED 16
 
-const uint PREDEF_SYMTAB_LEN = sizeof (predefined_symbols) / sizeof (predefined_symbols[0]);
-const uint COMPTAB_LEN = sizeof (comptab) / sizeof (comptab[0]);
-const uint JUMPTAB_LEN = sizeof (jumptab) / sizeof (jumptab[0]);
-
-char input_buf[INPUT_BUFSIZE];
-char line_buf[LINE_BUFSIZE];
+const uint PREDEF_SYMTAB_LEN = lengthof (predefined_symbols);
+const uint COMPTAB_LEN = lengthof (comptab);
+const uint JUMPTAB_LEN = lengthof (jumptab);
 
 uint symtab_len = SYMTAB_START_LEN;
 uint symtab_next_entry;
@@ -133,10 +123,8 @@ int main(int argc, char* argv[])
     FILE* f_input;
     FILE* f_output;
     FILE* f_tmp;
-    int retval = 0;
-    char* extension;
-    char* output_name;
     bool print_symtab_flag = false;
+    int retval = 0;
 
     symtab_next_entry = PREDEF_SYMTAB_LEN;
     symtab = malloc(SYMTAB_START_LEN * sizeof (symbol_t));
@@ -157,37 +145,39 @@ int main(int argc, char* argv[])
             goto free_symtab;
         }
     }
-    if (checkExtension(argv[1], &extension) == 0) {
-        fprintf(stderr, "file: %s has invalid extension: %s\n", argv[1], extension);
-        retval = INVALID_FILE;
+ 
+    char* extension_p;
+    if (checkExtension(argv[1], &extension_p, "asm") == 0) {
+        fprintf(stderr, "file: %s has invalid extension: %s\n", argv[1], extension_p);
+        retval = INVALID_FILE_EXTNSN;
         goto free_symtab;
     }
     if ((f_input = fopen(argv[1], "r")) == NULL) {
         fprintf(stderr, "cannot open: %s\n", argv[1]);
-        retval = INVALID_FILE_EXTNSN;
+        retval = INVALID_FILE;
         goto free_symtab;
     }
+    extension_p;
 
-    extension[0] = '\0';
-    output_name = malloc(strlen(argv[1]) + 6);
+    char* output_name = malloc(strlen(argv[1]) + 6);
     sprintf(output_name, "%s%s", argv[1], ".hack");
     f_output = fopen(output_name, "w");
     free(output_name);
 
     if (f_output == NULL) {
-        fprintf(stderr, "cannot open output file: %s\n", argv[1]);
+        fprintf(stderr, "could not open output file: %s\n", argv[1]);
         retval = INVALID_FILE;
         goto close_input;
     }
     // if ((f_tmp = tmpfile()) == NULL) {
     if ((f_tmp = fopen("AsmblrTemp.txt.asm", "w+")) == NULL) {
-        fprintf(stderr, "ERR: could not create internal temporary file errno: %d\n", errno);
+        fprintf(stderr, "ERR: could not create internal temporary file, errno: %d\n", errno);
         retval = INVALID_FILE;
         goto close_output;
     }
 
     if (preprocessor(f_tmp, f_input) != 0) {
-        fprintf(stderr, "Preprocessor ERR\n");
+        fprintf(stderr, "ERR: preprocessor\n");
         goto close_tmp;
     }
     if (print_symtab_flag) {
@@ -196,7 +186,7 @@ int main(int argc, char* argv[])
 
     rewind(f_tmp);
     if (processor(f_output, f_tmp) != 0) {
-        fprintf(stderr, "Processor ERR\n");
+        fprintf(stderr, "ERR: processor\n");
         goto close_tmp;
     }
 
@@ -215,7 +205,8 @@ exit:
 
 int processor(FILE* f_output, FILE* f_input)
 {
-    for (int line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; line_num++) {
+    char input_buf[INPUT_BUFSIZE];
+    for (uint line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; line_num++) {
         instruction_t instruction = {0};
         int comp_i = 0;
         int jump_i = 0;
@@ -228,7 +219,7 @@ int processor(FILE* f_output, FILE* f_input)
         // A-instruction
         if (input_buf[0] == '@') {
             int value = strtol(&input_buf[1], &ibuf_p, 10);
-            if (&input_buf[1] == &ibuf_p[0]) {
+            if (&input_buf[1] == ibuf_p) {
                 for (uint i = 0; i < symtab_next_entry; i++) {
                     if (strcmp(symtab[i].name, &input_buf[1]) == 0) {
                         value = symtab[i].value.u;
@@ -248,7 +239,7 @@ int processor(FILE* f_output, FILE* f_input)
                 if (comp_i == 0 && jump_i == 0) {
                     comp_i = ibuf_i + 1;
                 } else {
-                    fprintf(stderr, "ERR: invalid line %s number %d\n", input_buf, line_num);
+                    fprintf(stderr, "ERR: Invalid syntax on line: %d\n\"%s\"\n", line_num, input_buf);
                     return -1;
                 }
                 break;
@@ -256,7 +247,7 @@ int processor(FILE* f_output, FILE* f_input)
                 if (jump_i == 0) {
                     jump_i = ibuf_i + 1;
                 } else {
-                    fprintf(stderr, "ERR: invalid line %s number %d\n", input_buf, line_num);
+                    fprintf(stderr, "ERR: Invalid syntax on line: %d\n\"%s\"\n", line_num, input_buf);
                     return -1;
                 }
                 break;
@@ -278,12 +269,12 @@ int processor(FILE* f_output, FILE* f_input)
                     shift_val = 2;
                     break;
                 default:
-                    fprintf(stderr, "ERR: Invalid destination on line %s number %d\n",
+                    fprintf(stderr, "ERR: Invalid destination on line: %s number: %d\n",
                             input_buf, line_num);
                     return -1;
                 }
                 if (instruction.s.dest >> shift_val & 1) {
-                    fprintf(stderr, "ERR: Multiple same destinations on line %s number %d\n",
+                    fprintf(stderr, "ERR: Multiple same destinations on line: %s number: %d\n",
                             input_buf, line_num);
                     return -1;
                 }
@@ -331,6 +322,7 @@ write_instruction:
 
 int preprocessor(FILE* f_tmp, FILE* f_input)
 {
+    char input_buf[INPUT_BUFSIZE];
     char tmp_buf[INPUT_BUFSIZE + 1];
     int ROM_line_num = 0;
 
@@ -357,7 +349,7 @@ int preprocessor(FILE* f_tmp, FILE* f_input)
         case '(':
             *--ibuf_p = '\0';
             if (*--tbuf_p != ')') {
-                fprintf(stderr, "ERR: invalid label on line %d,\n%s\n", line_num, input_buf);
+                fprintf(stderr, "ERR: Invalid label on line: %d,\n%s\n", line_num, input_buf);
                 return -1;
             }
             *tbuf_p = '\0';
