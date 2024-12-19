@@ -1,3 +1,10 @@
+// --START--
+@256
+D=A
+@SP
+M=D
+@Sys.init
+0;JMP
 // push constant 10
 @10
 D=A
@@ -180,7 +187,7 @@ M=D
 AM=M-1
 D=M
 A=A-1
-M+MD
+M=M+D
 // push argument 1
 @1
 D=A
@@ -196,7 +203,7 @@ M=D
 AM=M-1
 D=M
 A=A-1
-M-MD
+M=M-D
 // push this 6
 @6
 D=A
@@ -222,13 +229,13 @@ M=D
 AM=M-1
 D=M
 A=A-1
-M+MD
+M=M+D
 // sub
 @SP
 AM=M-1
 D=M
 A=A-1
-M-MD
+M=M-D
 // push temp 6
 @11
 D=M
@@ -241,7 +248,7 @@ M=D
 AM=M-1
 D=M
 A=A-1
-M+MD
+M=M+D
 // --END--
 (end)
 @end

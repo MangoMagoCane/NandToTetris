@@ -23,39 +23,11 @@ bool checkExtension(char* filename, char** extension_pp, char* extension)
     return true;
 }
 
-void reverse(char* s)
+char* getFileName(char* src)
 {
-    int c;
-    char* t = s;
-
-    while (*t) {
-        t++;
-    }
-    t--;
-
-    for (; s < t; s++, t--) {
-        c = *s;
-        *s = *t;
-        *t = c;
-    }
-}
-
-char* getFilename(char* src)
-{
-    char* fname = malloc(MAX_PATH * sizeof (char));
-    char* fp = fname;
-    char* np;
-
-    for (np = src; !(*np == '\n' || *np == '.'); ++np) {}
-    np--;
-
-    while (*np != '\\') {
-        *fp++ = *np--;
-    }
-    *fp = '\0';
-
-    reverse(fname);
-    return fname;
+    char* forward_p = strrchr(src, '/');
+    char* back_p = strrchr(src, '\\');
+    return &((forward_p > back_p) ? forward_p : back_p)[1];
 }
 
 #endif // NAND2TETRIS_UTILITIES

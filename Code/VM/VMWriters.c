@@ -6,12 +6,12 @@
 
 // command pop 2
 #define C_2 "@SP\nAM=M-1\nD=M\nA=A-1\n" 
-#define ADD C_2 "M=M+D\n"
+#define ADD C_2 "M=D+M\n"
 #define SUB C_2 "M=M-D\n"
-#define NEG "@SP\nA=M-1\nM=!M\n"
+#define NEG "@SP\nA=M-1\nM=-M\n"
 #define AND C_2 "M=M&D\n"
 #define OR  C_2 "M=M|D\n"
-#define NOT "@SP\nA=M-1\nM=-M\n"
+#define NOT "@SP\nA=M-1\nM=!M\n"
 
 #define COMP_STRUC "@%s_%d\nD=A\n@R13\nM=D\n" C_2 "D=M-D\n@t_jmp\nD;%s\n@f_jmp\n0;JMP\n(%s_%d)\n"
 
@@ -30,7 +30,6 @@
 
 #define PUSH_CONSTANT "@%d\nD=A\n" PUSH_D
 
-#define MAX_STATIC_COUNT 240
 #define PUSH_STATIC "@%s.%d\nD=M\n" PUSH_D
 #define POP_STATIC  POP_D "@%s.%d\nM=D\n"
 
@@ -38,28 +37,88 @@
 #define COMP_TRUE_JUMP  "(t_jmp)\n@0\nD=!A\nA=M-1\nM=D\n@R13\nA=M\n0;JMP\n"
 #define COMP_FALSE_JUMP "(f_jmp)\n@0\nD=A\nA=M-1\nM=D\n@R13\nA=M\n0;JMP\n"
 
-#define END_INSTRUCTS END_LOOP COMP_TRUE_JUMP COMP_FALSE_JUMP "\n"
+// 256 + 5 = 261 (for the psuedo Sys.init call)
+#define START_INSTRUCTS_DIR "@261\nD=A\n@SP\nM=D\n@Sys.init\n0;JMP\n"
 
-enum push_pop {
+#define END_INSTRUCTS   END_LOOP COMP_TRUE_JUMP COMP_FALSE_JUMP
+
+#define CALL_SAVE_SEGS "@LCL\nD=M\n"  PUSH_D "@ARG\nD=M\n"  PUSH_D \
+                       "@THIS\nD=M\n" PUSH_D "@THAT\nD=M\n" PUSH_D
+#define CALL_FUNC "@%s$ret.%d\nD=A\n" PUSH_D CALL_SAVE_SEGS "@%d\nD=A\n@SP\nD=M-D\n@ARG\nM=D\n@SP\nD=M\n@LCL\nM=D\n@%s\n0;JMP\n(%s$ret.%d)\n"
+
+#define RET_POP_SEGS "@R13\nAM=M-1\nD=M\n@THAT\nM=D\n@R13\nAM=M-1\nD=M\n@THIS\nM=D\n" \
+                     "@R13\nAM=M-1\nD=M\n@ARG\nM=D\n@R13\nAM=M-1\nD=M\n@LCL\nM=D\n"
+#define RETURN "@LCL\nD=M\n@R13\nM=D\n@5\nA=D-A\nD=M\n@R14\nM=D\n" \
+               POP_D "@ARG\nA=M\nM=D\n@ARG\nD=M+1\n@SP\nM=D\n" RET_POP_SEGS "@R14\nA=M\n0;JMP\n"
+
+// POP_D @ARG A=M M=D @ARG D=M+1 @SP M=D *ARG = pop(); SP = ARG + 1
+
+#define LABEL   "(%s$%s)\n"
+#define GOTO    "@%s$%s\n0;JMP\n"
+#define IF_GOTO POP_D "@%s$%s\nD;JNE\n"
+
+typedef enum stack_command_t {
     PUSH, POP
-};
+} stack_command_t;
 
-enum segment_indices {
+typedef enum segment_indices_t {
     CALLEE, POINTER, TEMP, STATIC
-};
+} segment_indices_t;
+
+#define MAX_STATIC_COUNT 240
+#define WRITER_NAME_BUFSIZE 128
 
 static FILE* writer_fp;
-static char* writer_fn_p;
+static char curr_file_name[WRITER_NAME_BUFSIZE];
+static char curr_func_name[WRITER_NAME_BUFSIZE] = "__global__";
+static bool is_directory = false;
 
-void setWriterFile(FILE* fp, char* filename)
+static uint curr_call_i;
+
+int writeBranching(char* command_p, char* label_p)
 {
-    writer_fp = fp;
-    writer_fn_p = filename;
+    fprintf(writer_fp, "// %s %s\n", command_p, label_p);
+    if (strcmp(command_p, "label") == 0) {
+        fprintf(writer_fp, LABEL, curr_func_name, label_p);
+    } else if (strcmp(command_p, "goto") == 0) {
+        fprintf(writer_fp, GOTO, curr_func_name, label_p);
+    } else if (strcmp(command_p, "if-goto") == 0) {
+        fprintf(writer_fp, IF_GOTO, curr_func_name, label_p);
+    } else {
+        return -1;
+    }
+
+    return 0;
 }
 
-void endWriterFile()
+void setWriterOutputFile(FILE* fp, bool is_incoming_dir)
 {
-    fprintf(writer_fp, "// --END--\n");
+    writer_fp = fp;
+    is_directory = is_incoming_dir;
+}
+
+void setWriterFileName(char* file_name_p)
+{
+    strncpy(curr_file_name, file_name_p, sizeof (curr_file_name));
+    fprintf(writer_fp, "//   --%s START--\n", file_name_p);
+}
+
+void setWriterFuncName(char* func_name_p)
+{
+    strncpy(curr_func_name, func_name_p, sizeof (curr_func_name));
+}
+
+void WriteStart()
+{
+    fprintf(writer_fp, "// --PROGRAM START--\n");
+    if (is_directory) {
+        fprintf(writer_fp, START_INSTRUCTS_DIR);
+    }
+}
+
+void WriteEnd()
+{
+    fprintf(writer_fp, "// -- PROGRAM END--\n");
     fprintf(writer_fp, END_INSTRUCTS);
 }
 
@@ -83,7 +142,7 @@ int writeArithLogical(char* command_p)
     }
     for (uint i = 0; i < 6; ++i) {
         if (strcmp(command_p, lookup_logical[i][0]) == 0) {
-            fprintf(writer_fp, COMP_STRUC, writer_fn_p, logical_count, lookup_logical[i][1], writer_fn_p, logical_count);
+            fprintf(writer_fp, COMP_STRUC, curr_file_name, logical_count, lookup_logical[i][1], curr_file_name, logical_count);
             logical_count++;
             return 0;
         }
@@ -92,7 +151,7 @@ int writeArithLogical(char* command_p)
     return -1;
 }
 
-int writePushPop(char* command_p, char* segment_p, char* index_p)
+int writePushPop(char* command_p, char* segment_p, uint index_val)
 {
     static uint static_count = 0;
     static char* lookup_pointer[2] = { "THIS", "THAT" };
@@ -104,13 +163,7 @@ int writePushPop(char* command_p, char* segment_p, char* index_p)
         { PUSH_TEMP, POP_TEMP }, { PUSH_STATIC, POP_STATIC }
     };
 
-    char* index_end_p;
-    int index_val = strtol(index_p, &index_end_p, 10);
-    if (index_val < 0 || *index_end_p != '\0') {
-        return -1;
-    }
-
-    uint seg_val;
+    stack_command_t seg_val;
     if (strcmp(command_p, "push") == 0) {
         seg_val = PUSH;
     } else if (strcmp(command_p, "pop") == 0) {
@@ -137,7 +190,7 @@ int writePushPop(char* command_p, char* segment_p, char* index_p)
         fprintf(writer_fp, lookup_seg[TEMP][seg_val], index_val + 5);
     } else if (strcmp(segment_p, "static") == 0) {
         if (static_count > MAX_STATIC_COUNT) return -1;
-        fprintf(writer_fp, lookup_seg[STATIC][seg_val], writer_fn_p, index_val, writer_fn_p, index_val);
+        fprintf(writer_fp, lookup_seg[STATIC][seg_val], curr_file_name, index_val, curr_file_name, index_val);
         static_count++;
     } else {
         return -1;
@@ -146,8 +199,41 @@ int writePushPop(char* command_p, char* segment_p, char* index_p)
     return 0;
 }
 
+int writeCall(char* func_name_p, uint arg_count)
+{
+    fprintf(writer_fp, "// call %s %d\n", func_name_p, arg_count);
+    fprintf(writer_fp, CALL_FUNC, curr_func_name, curr_call_i, 5+arg_count, func_name_p, curr_func_name, curr_call_i);
+    curr_call_i++;
+
+    return 0;
+}
+
+int writeFunction(char* func_name_p, uint var_count)
+{
+    setWriterFuncName(func_name_p);
+    fprintf(writer_fp, "(%s) // function %s %d\n", curr_func_name, func_name_p, var_count);
+
+    if (var_count > 0) {
+        fprintf(writer_fp, "D=0\n");
+        for (uint i = 0; i < var_count; ++i) {
+            fprintf(writer_fp, PUSH_D);
+        }
+    }
+    curr_call_i = 0;
+
+    return 0;
+}
+
+int writeReturn()
+{
+    fprintf(writer_fp, "// return\n");
+    fprintf(writer_fp, RETURN);
+
+    return 0;
+}
+
 // c-2: @SP AM=M-1 D=M A=A-1
-// add: c-2 M=M+D
+// add: c-2 M=D+M
 // sub: c-2 M=M-D
 // neg: @SP A=M-1 M=!M
 
@@ -181,6 +267,31 @@ int writePushPop(char* command_p, char* segment_p, char* index_p)
 // push static i: @{FileName.i} D=M push-D
 // pop  static i: {pop-D} @{FileName.i} M=D
 
+// @{retAddr} D=A PUSH_D
+// @LCL D=M PUSH_D
+// @ARG D=M PUSH_D
+// @THIS D=M PUSH_D
+// @THAT D=M PUSH_D
+// @5 D=A @{nArgs} D=D+A @SP D=M-D @ARG M=D
+// @SP D=M @LCL M=D
+// @{functionName} 0;JMP ({retAddr})
+
+// function functionName nVars
+// ({functionName}) 
+// D=0 {PUSH_D nVars times} // set up local
+// {functionBody}
+
+// return
+// @LCL D=M @R13 M=D            endFrame = LCL
+// @5 A=D-A D=M @R14 M=D        retAddr = *(endFrame - 5)
+// POP_D @ARG A=M M=D D=M+1 @SP M=D *ARG = pop(); SP = ARG + 1
+// @R13 AM=M-1 D=M @THAT M=D    THAT = *(endFrame - 1)
+// @R13 AM=M-1 D=M @THIS M=D    THIS = *(endFrame - 1)
+// @R13 AM=M-1 D=M @ARG  M=D    ARG =  *(endFrame - 1)
+// @R13 AM=M-1 D=M @LCL  M=D    LCL =  *(endFrame - 1)
+// @R14 A=M 0;JMP               goto retAddr
+// retAddr = {functionName$ret.i}
+
 // (end)
 // @end
 // 0;jmp
@@ -200,3 +311,4 @@ int writePushPop(char* command_p, char* segment_p, char* index_p)
 // @R13
 // A=M
 // 0;jmp
+
