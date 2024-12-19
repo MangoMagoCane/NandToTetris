@@ -6,20 +6,29 @@ typedef unsigned int uint;
 #define lengthof(arr) (sizeof (arr) / sizeof (arr[0]))
 #define MAX_PATH 256
 
-enum err_e {
+typedef enum err_t {
     INVALID_ARG_CNT,
     INVALID_FILE,
+    INVALID_DIR,
     INVALID_FILE_EXTNSN,
     FAILED_MALLOC
-};
+} err_t ;
 
-bool checkExtension(char* filename, char** extension_pp, char* extension)
+bool checkExtension(char* file_name_p, char** extension_pp, char extension[])
 {
-    char* dot = strrchr(filename, '.');
-    *extension_pp = dot;
-    if (!dot || dot == filename || strcmp(&(*extension_pp)[1], extension) != 0) {
+    char* p = file_name_p;
+    char* dot_p = NULL;
+    while (*p) {
+        if (*p == '.') {
+            dot_p = p;
+        }
+        p++;
+    }
+    if (!dot_p || dot_p == file_name_p || strcmp(&dot_p[1], extension) != 0) {
+        *extension_pp = &p[-1];
         return false;
     }
+    *extension_pp = dot_p;
     return true;
 }
 
@@ -27,6 +36,9 @@ char* getFileName(char* src)
 {
     char* forward_p = strrchr(src, '/');
     char* back_p = strrchr(src, '\\');
+    if (forward_p == NULL && back_p == NULL) {
+        return src;
+    }
     return &((forward_p > back_p) ? forward_p : back_p)[1];
 }
 

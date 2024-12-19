@@ -9,7 +9,7 @@
 #include <limits.h>
 #include <uchar.h>
 #include "VMWriters.c"
-#include "utilities.h"
+#include "../utilities.h"
 
 int parseFile(FILE* f_input, char* filename_p);
  

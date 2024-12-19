@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "utilities.h"
+#include "../utilities.h"
 
 // command pop 2
 #define C_2 "@SP\nAM=M-1\nD=M\nA=A-1\n" 
