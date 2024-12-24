@@ -110,9 +110,9 @@ jump_t jumptab[] = {
 #define SYMTAB_MAX_UNLABELED 256
 #define SYMTAB_MIN_UNLABELED 16
 
-const uint PREDEF_SYMTAB_LEN = lengthof (predefined_symbols);
-const uint COMPTAB_LEN = lengthof (comptab);
-const uint JUMPTAB_LEN = lengthof (jumptab);
+const uint PREDEF_SYMTAB_LEN = LENGTHOF (predefined_symbols);
+const uint COMPTAB_LEN = LENGTHOF (comptab);
+const uint JUMPTAB_LEN = LENGTHOF (jumptab);
 
 uint symtab_len = SYMTAB_START_LEN;
 uint symtab_next_entry;

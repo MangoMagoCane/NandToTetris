@@ -72,24 +72,7 @@ static FILE* writer_fp;
 static char curr_file_name[WRITER_NAME_BUFSIZE];
 static char curr_func_name[WRITER_NAME_BUFSIZE] = "__global__";
 static bool is_directory = false;
-
 static uint curr_call_i;
-
-int writeBranching(char* command_p, char* label_p)
-{
-    fprintf(writer_fp, "// %s %s\n", command_p, label_p);
-    if (strcmp(command_p, "label") == 0) {
-        fprintf(writer_fp, LABEL, curr_func_name, label_p);
-    } else if (strcmp(command_p, "goto") == 0) {
-        fprintf(writer_fp, GOTO, curr_func_name, label_p);
-    } else if (strcmp(command_p, "if-goto") == 0) {
-        fprintf(writer_fp, IF_GOTO, curr_func_name, label_p);
-    } else {
-        return -1;
-    }
-
-    return 0;
-}
 
 void setWriterOutputFile(FILE* fp, bool is_incoming_dir)
 {
@@ -228,6 +211,22 @@ int writeReturn()
 {
     fprintf(writer_fp, "// return\n");
     fprintf(writer_fp, RETURN);
+
+    return 0;
+}
+
+int writeBranching(char* command_p, char* label_p)
+{
+    fprintf(writer_fp, "// %s %s\n", command_p, label_p);
+    if (strcmp(command_p, "label") == 0) {
+        fprintf(writer_fp, LABEL, curr_func_name, label_p);
+    } else if (strcmp(command_p, "goto") == 0) {
+        fprintf(writer_fp, GOTO, curr_func_name, label_p);
+    } else if (strcmp(command_p, "if-goto") == 0) {
+        fprintf(writer_fp, IF_GOTO, curr_func_name, label_p);
+    } else {
+        return -1;
+    }
 
     return 0;
 }
