@@ -110,19 +110,19 @@ jump_t jumptab[] = {
 #define SYMTAB_MAX_UNLABELED 256
 #define SYMTAB_MIN_UNLABELED 16
 
-const uint PREDEF_SYMTAB_LEN = LENGTHOF (predefined_symbols);
-const uint COMPTAB_LEN = LENGTHOF (comptab);
-const uint JUMPTAB_LEN = LENGTHOF (jumptab);
+const uint PREDEF_SYMTAB_LEN = LENGTHOF(predefined_symbols);
+const uint COMPTAB_LEN = LENGTHOF(comptab);
+const uint JUMPTAB_LEN = LENGTHOF(jumptab);
 
 uint symtab_len = SYMTAB_START_LEN;
 uint symtab_next_entry;
-symbol_t* symtab;
+symbol_t *symtab;
 
 int main(int argc, char* argv[])
 {
-    FILE* f_input;
-    FILE* f_output;
-    FILE* f_tmp;
+    FILE *f_input;
+    FILE *f_output;
+    FILE *f_tmp;
     bool print_symtab_flag = false;
     int retval = 0;
 
@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
         }
     }
  
-    char* extension_p;
+    char *extension_p;
     if (checkExtension(argv[1], &extension_p, "asm") == 0) {
         fprintf(stderr, "file: %s has invalid extension: %s\n", argv[1], extension_p);
         retval = INVALID_FILE_EXTNSN;
@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
     }
     extension_p;
 
-    char* output_name = malloc(strlen(argv[1]) + 6);
+    char *output_name = malloc(strlen(argv[1]) + 6);
     sprintf(output_name, "%s%s", argv[1], ".hack");
     f_output = fopen(output_name, "w");
     free(output_name);
@@ -203,7 +203,7 @@ exit:
     exit(retval);
 }
 
-int processor(FILE* f_output, FILE* f_input)
+int processor(FILE *f_output, FILE *f_input)
 {
     char input_buf[INPUT_BUFSIZE];
     for (uint line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; line_num++) {
@@ -327,8 +327,8 @@ int preprocessor(FILE* f_tmp, FILE* f_input)
     int ROM_line_num = 0;
 
     for (int line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; line_num++) {
-        char* ibuf_p = input_buf;
-        char* tbuf_p = tmp_buf;
+        char *ibuf_p = input_buf;
+        char *tbuf_p = tmp_buf;
         char curr = *ibuf_p;
         char next;
 
@@ -357,7 +357,7 @@ int preprocessor(FILE* f_tmp, FILE* f_input)
             break;
         case '@':
             *tbuf_p = '\0';
-            char* strtol_p;
+            char *strtol_p;
             strtol(&tmp_buf[1], &strtol_p, 10);
             if (&tmp_buf[1] == strtol_p) {
                 *tbuf_p = '\0';
@@ -387,7 +387,7 @@ int preprocessor(FILE* f_tmp, FILE* f_input)
 int insertSymbol(char* name, uint16_t value, bool labeled)
 {
     bool symbol_in_table = false;
-    char* name_buf;
+    char *name_buf;
     uint symtab_i;
 
     for (symtab_i = 0; symtab_i < symtab_next_entry; symtab_i++) {
@@ -441,7 +441,7 @@ void printSymTab(uint16_t start_index)
     char bit_print_buf[17] = { 0 };
     char nameDashes[128] = { 0 };
     uint max_name_len = 6;
-    char* name_buf;
+    char *name_buf;
 
     for (uint i = 0; i < symtab_next_entry; i++) {
         uint name_len = strlen(symtab[i].name);

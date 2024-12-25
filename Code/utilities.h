@@ -4,7 +4,6 @@
 typedef unsigned int uint;
 
 #define LENGTHOF(arr) (sizeof (arr) / sizeof (arr[0]))
-#define MAX_PATH 256
 
 typedef enum err_t {
     INVALID_ARG_CNT,
