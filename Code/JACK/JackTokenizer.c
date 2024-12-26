@@ -22,10 +22,10 @@ static const char *g_keywords[] = {
 
 static const char g_symbols[] = {
     '{', '}', '(', ')', '[', ']', '.', ',', ';',
-    '+', '*', '/', '&', '|', '<', '>', '=', '-', '~'
+    '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'
 };
 
-char *g_token_types[] = {
+const char *g_token_types[] = {
     "keyword", "symbol", "identifier", "integerConstant", "stringConstant"
 };
 
@@ -43,12 +43,6 @@ struct token {
 #define CURR_TOKEN_BUF_LEN 1024
 #define PUSHBACK_BUF_LEN 128
 
-#define OP_SYMBOL_START 9
-#define OP_SYMBOL_END 16
-
-#define UNARY_OP_SYMBOL_START 17
-#define UNARY_OP_SYMBOL_END 18
-
 static const uint KEYWORD_LEN = LENGTHOF(g_keywords);
 static const uint SYMBOLS_LEN = LENGTHOF(g_symbols);
 
@@ -65,7 +59,7 @@ char g_curr_token[CURR_TOKEN_BUF_LEN];
 bool g_tokens_left = true;
 bool g_empty_line = true;
 bool g_in_multi_line = false;
-uint g_curr_line = 1;
+uint g_curr_line = 0;
 
 void printToken(struct token *token_p)
 {
@@ -119,7 +113,7 @@ void setTokenizerFile(FILE *fp)
     g_empty_line = true;
     g_tokens_left = true;
     g_in_multi_line = false;
-    g_curr_line = 1;
+    g_curr_line = 0;
 }
 
 void pushback(struct token *token_p) {
@@ -256,7 +250,7 @@ load_line:
     if (i > 0) {
         g_curr_token[i] = '\0';
         g_line_buf_p--;
-        for (enum keyword i = 0; i < SYMBOLS_LEN; ++i) {
+        for (enum keyword i = 0; i < KEYWORD_LEN; ++i) {
             if (strcmp(g_curr_token, g_keywords[i]) == 0) {
                 curr_token->type = KEYWORD;
                 curr_token->fixed_val.keyword = i;
@@ -271,15 +265,34 @@ load_line:
     goto load_line;
 }
 
-bool isOp(struct token *token_p)
+bool isOp(struct token *token_p, bool is_unary)
 {
+    static const char ops[] = {
+      '+', '-', '*', '/', '&', '|', '<', '>', '='
+    };
+    static const char unary_ops[] = {
+      '-', '~'
+    };
+    static const uint OP_LEN = LENGTHOF(ops);
+    static const uint UNARY_OP_LEN = LENGTHOF(unary_ops);
+
     if (token_p->type != SYMBOL) {
         return false;
     }
 
+    const char *arr_p;
+    uint len;
+    if (is_unary) {
+        arr_p = unary_ops;
+        len = UNARY_OP_LEN;
+    } else {
+        arr_p = ops;
+        len = OP_LEN;
+    }
+
     char op = token_p->fixed_val.symbol;
-    for (uint i = OP_SYMBOL_START; i <= OP_SYMBOL_END; ++i) {
-        if (op == g_symbols[i]) {
+    for (uint i = 0; i < len; ++i) {
+        if (op == arr_p[i]) {
             return true;
         }
     }
@@ -287,29 +300,41 @@ bool isOp(struct token *token_p)
     return false;
 }
 
-bool isUnaryOp(struct token *token_p)
+bool isType(struct token *token_p)
 {
-    if (token_p->type != SYMBOL) {
-        return false;
-    }
-
-    char op = token_p->fixed_val.symbol;
-    for (uint i = UNARY_OP_SYMBOL_START; i <= UNARY_OP_SYMBOL_END; ++i) {
-        if (op == g_symbols[i]) {
-            return true;
-        }
-    }
-
-    return false;
+    enum keyword keyword = token_p->fixed_val.keyword;
+    enum token_type type = token_p->type;
+    return type == IDENTIFIER || (type == KEYWORD && (keyword == INT || keyword == CHAR || keyword == BOOLEAN));
 }
 
-bool isIdentifer(struct token *token_p)
+// bool isStatement(struct token *token_p)
+// {
+//     static const enum keyword statements[] = {
+//         LET, DO, IF, WHILE, RETURN
+//     }
+//     static const uint STATEMENTS_LEN = LENGTHOF(statements);
+//
+//     if (token_p->type != KEYWORD) {
+//         return false;
+//     }
+//
+//     enum keyword keyword = token_p->fixed_val.keyword;
+//     for (uint i = 0; i < STATEMENTS_LEN; ++i) {
+//         if (keyword == keywords[i]) {
+//             return true;
+//         }
+//     }
+//
+//     return false;
+// }
+
+bool isIdentifier(struct token *token_p)
 {
     return token_p->type == IDENTIFIER;
 }
 
-void main()
-{
+// void main()
+// {
 //     FILE* fp = fopen("Jack-files/Square/Main.jack", "r");
 //     setTokenizerFile(fp);
 //     if (fp == NULL) {
@@ -342,5 +367,5 @@ void main()
     //     advance();
     // }
     // printf("\n");
-}
+// }
 

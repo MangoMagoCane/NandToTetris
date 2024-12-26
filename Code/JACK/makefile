@@ -7,5 +7,5 @@
 # 	chmod +x JackTokenizer
 
 CompilationEngine: CompilationEngine.c
-	gcc CompilationEngine.c -std=c11 -o CompilationEngine
+	gcc CompilationEngine.c -std=c11 -Wno-int-conversion -o CompilationEngine
 	chmod +x CompilationEngine

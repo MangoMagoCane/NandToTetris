@@ -8,9 +8,35 @@
 union process_data {
     enum keyword keyword;
     char symbol;
-    char *pointer;
+    char *pointer; // for NULL
 };
 
+bool process(enum token_type type, void *data, bool optional);
+// bool process(enum token_type type, union process_data data, bool optional);
+void printXML(const struct token *token_p, const char *grammar_elem);
+void compileCompileClass();
+void compileClassVarDec();
+void compileSubroutine();
+void compileParameterList();
+void compileSubroutineBody();
+void compileVarDec();
+void compileStatements();
+void compileLet();
+void compileIf();
+void compileWhile();
+void compileDo();
+void compileReturn();
+void compileExpression();
+void compileTerm();
+void compileSubroutineCall();
+void compileExpressionList();
+
+// #define OPTNL true
+// #define MAND false
+
+enum process_optional {
+    MAND = false, OPTNL = true
+};
 
 #define COMPILE_ERR(err_name) { \
     fprintf(stderr, "ERR: Invalid " err_name " on line: %d\n", g_curr_line); \
@@ -27,38 +53,52 @@ union process_data {
     fprintf(writer_fp, "%*s</" string ">\n", g_indent_amount, ""); \
 }
 
-// #define XML_PRINTF(format_type, type_str, value) \
-//     fprintf(writer_fp, "%*s<%s> %" format_type " </%s>", g_indent_amount, " ", type_str, value, type_str)
-//
-void printXML
+#define XML_PRINTF(format_type, grammar_elem, value) \
+    fprintf(writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem)
+
 
 #define INDENT_WIDTH 2
 
 static FILE *writer_fp;
 static uint g_indent_amount = 0;
 
+void printXML(const struct token *token_p, const char *grammar_elem) {
+    switch (token_p->type) {
+    case KEYWORD:
+        XML_PRINTF("s", grammar_elem, g_keywords[token_p->fixed_val.keyword]);
+        break;
+    case SYMBOL:
+        XML_PRINTF("c", grammar_elem, token_p->fixed_val.symbol);
+        break;
+    case IDENTIFIER:
+    case INT_CONST:
+    case STRING_CONST:
+        XML_PRINTF("s", grammar_elem, token_p->var_val);
+        break;
+    default:
+        fprintf(stderr, "ERR: Cannot print XML with token type: %d", curr_token->type);
+        break;
+    }
+}
 
-void process(enum token_type type, union process_data data) // bool optional
+bool process(enum token_type type, void *_data, bool optional)
 {
-    advance();
     bool retval = false;
-
+    union process_data data;
+    data.pointer = _data;
     if (type == curr_token->type) {
-        char *type_str = g_token_types[type];
         switch (curr_token->type) {
         case KEYWORD:
             retval = data.keyword == curr_token->fixed_val.keyword;
-            XML_PRINTF("s", type_str, g_keywords[curr_token->fixed_val.keyword]);
             break;
         case SYMBOL:
             retval = data.symbol == curr_token->fixed_val.symbol;
-            XML_PRINTF("c", type_str, curr_token->fixed_val.symbol);
             break;
         case IDENTIFIER:
         case INT_CONST:
         case STRING_CONST:
-            retval = strcmp(data.pointer, curr_token->var_val) == 0;
-            XML_PRINTF("s", type_str, curr_token->var_val);
+            // retval = strcmp(data.pointer, curr_token->var_val) == 0;
+            retval = true;
             break;
         default:
             COMPILE_ERR("token type");
@@ -66,20 +106,251 @@ void process(enum token_type type, union process_data data) // bool optional
         }
     }
 
-    if (!retval) {
+    if (retval) {
+        printXML(curr_token, g_token_types[type]);
+        advance();
+    } else if (!optional) {
         COMPILE_ERR("token");
     }
+
+    return retval;
 }
 
-compileStatements()
+void compileClass()
+{
+    NONTERM_PRINT_START("class");
+
+    process(KEYWORD, CLASS, MAND);
+    process(IDENTIFIER, NULL, MAND); // className
+    process(SYMBOL, '{', MAND);
+    while (curr_token->type == KEYWORD) {
+        enum keyword keyword = curr_token->fixed_val.keyword;
+        if (keyword == STATIC || keyword == FIELD) {
+            compileClassVarDec();
+        } else {
+            break;
+        }
+    }
+    while (curr_token->type == KEYWORD) {
+        enum keyword keyword = curr_token->fixed_val.keyword;
+        if (keyword == CONSTRUCTOR || keyword == FUNCTION || keyword == METHOD) {
+            compileSubroutine();
+        } else {
+            break;
+        }
+    }
+    process(SYMBOL, '}', MAND);
+
+    NONTERM_PRINT_END("class");
+}
+
+void compileClassVarDec()
+{
+    NONTERM_PRINT_START("classVarDec");
+
+    if (process(KEYWORD, STATIC, OPTNL) || process(KEYWORD, FIELD, MAND)) {}
+    if (!isType(curr_token)) {
+        COMPILE_ERR("type");
+    }
+    printXML(curr_token, g_token_types[curr_token->type]);
+    advance();
+    process(IDENTIFIER, NULL, MAND); // varName
+    while (process(SYMBOL, ',', OPTNL)) {
+        process(IDENTIFIER, NULL, MAND); // varName
+    }
+    process(SYMBOL, ';', MAND);
+
+    NONTERM_PRINT_END("classVarDec");
+}
+
+void compileSubroutine()
+{
+    NONTERM_PRINT_START("subroutineDec");
+
+    if (process(KEYWORD, CONSTRUCTOR, OPTNL) ||
+        process(KEYWORD, FUNCTION, OPTNL) ||
+        process(KEYWORD, METHOD, MAND)) {}
+    if (isType(curr_token)) {
+        advance();
+    } else {
+        process(KEYWORD, VOID, MAND);
+    }
+    process(IDENTIFIER, NULL, MAND); // subroutineName
+    process(SYMBOL, '(', MAND);
+    compileParameterList();
+    process(SYMBOL, ')', MAND);
+    compileSubroutineBody();
+
+    NONTERM_PRINT_END("subroutineDec");
+}
+
+void compileParameterList()
+{
+    NONTERM_PRINT_START("parameterList");
+
+    if (isType(curr_token)) {
+        process(IDENTIFIER, NULL, MAND); // varName
+        while (process(SYMBOL, ',', OPTNL)) {
+            process(IDENTIFIER, NULL, MAND); // varName
+        }
+    }
+
+    NONTERM_PRINT_END("parameterList");
+}
+
+void compileSubroutineBody()
+{
+    NONTERM_PRINT_START("subroutineBody");
+
+    process(SYMBOL, '{', MAND);
+    while (curr_token->type == KEYWORD && curr_token->fixed_val.keyword == VAR) {
+        compileVarDec();
+    }
+    compileStatements();
+    process(SYMBOL, '}', MAND);
+
+    NONTERM_PRINT_END("subroutineBody");
+}
+
+void compileVarDec()
+{
+    NONTERM_PRINT_START("varDec");
+
+    process(KEYWORD, VAR, MAND);
+    // printf("%s\n", g_keywords[curr_token->fixed_val.keyword]);
+    if (!isType(curr_token)) {
+        COMPILE_ERR("type");
+    }
+    printXML(curr_token, g_token_types[curr_token->type]);
+    advance();
+    process(IDENTIFIER, NULL, MAND); // varName
+    while (process(SYMBOL, ',', OPTNL)) {
+        process(IDENTIFIER, NULL, MAND); // varName
+    }
+    process(SYMBOL, ';', MAND);
+
+    NONTERM_PRINT_END("varDec");
+}
+
+void compileStatements()
 {
     NONTERM_PRINT_START("statements");
 
-    // if (!(compileLet() || compileIf() || compileWhile() || compileDo() || compileReturn())) {
-    //     COMPILE_ERR("statement");
-    // }
+    while (curr_token->type == KEYWORD) {
+        switch (curr_token->fixed_val.keyword) {
+        case LET:
+            compileLet();
+            continue;
+        case DO:
+            compileDo();
+            continue;
+        case IF:
+            compileIf();
+            continue;
+        case WHILE:
+            compileWhile();
+            continue;
+        case RETURN:
+            compileReturn();
+            continue;
+        }
+        break;
+    }
 
     NONTERM_PRINT_END("statements");
+}
+
+void compileLet()
+{
+    NONTERM_PRINT_START("letStatement");
+
+    process(KEYWORD, LET, MAND);
+    if (!isIdentifier(curr_token)) {
+        COMPILE_ERR("variable name");
+    }
+    printXML(curr_token, g_token_types[curr_token->type]);
+    advance();
+    if (process(SYMBOL, '[', OPTNL)) {
+        compileExpression();
+        process(SYMBOL, ']', MAND);
+    }
+    process(SYMBOL, '=', MAND);
+    compileExpression();
+    process(SYMBOL, ';', MAND);
+
+    NONTERM_PRINT_END("letStatement");
+}
+
+void compileIf()
+{
+    NONTERM_PRINT_START("ifStatement");
+
+    process(KEYWORD, IF, MAND);
+    process(SYMBOL, '(', MAND);
+    compileExpression();
+    process(SYMBOL, ')', MAND);
+    process(SYMBOL, '{', MAND);
+    compileStatements();
+    process(SYMBOL, '}', MAND);
+    if (process(KEYWORD, ELSE, OPTNL)) {
+        process(SYMBOL, '{', MAND);
+        compileStatements();
+        process(SYMBOL, '}', MAND);
+    }
+
+    NONTERM_PRINT_END("ifStatement");
+}
+
+void compileWhile()
+{
+    NONTERM_PRINT_START("whileStatement");
+
+    process(KEYWORD, WHILE, MAND);
+    process(SYMBOL, '(', MAND);
+    compileExpression();
+    process(SYMBOL, ')', MAND);
+    process(SYMBOL, '{', MAND);
+    compileStatements();
+    process(SYMBOL, '}', MAND);
+
+    NONTERM_PRINT_END("whileStatement");
+}
+
+void compileDo()
+{
+    NONTERM_PRINT_START("doStatement");
+
+    process(KEYWORD, DO, MAND);
+    struct token *identifier_p;
+    copyToken(&identifier_p, curr_token);
+    process(IDENTIFIER, NULL, MAND);
+    if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
+        compileExpressionList();
+        process(SYMBOL, ')', MAND);
+    } else if (process(SYMBOL, '.', OPTNL)) {  // IDENTIFIER = className | varName
+        process(IDENTIFIER, NULL, MAND);
+        process(SYMBOL, '(', MAND);
+        compileExpressionList();
+        process(SYMBOL, ')', MAND);
+    } else {
+        COMPILE_ERR("symbol");
+    }
+    process(SYMBOL, ';', MAND);
+
+    NONTERM_PRINT_END("doStatement");
+}
+
+void compileReturn()
+{
+    NONTERM_PRINT_START("returnStatement");
+
+    process(KEYWORD, RETURN, MAND);
+    if (!process(SYMBOL, ';', OPTNL)) {
+        compileExpression();
+        process(SYMBOL, ';', MAND);
+    }
+
+    NONTERM_PRINT_END("returnStatement");
 }
 
 void compileExpression()
@@ -87,10 +358,11 @@ void compileExpression()
     NONTERM_PRINT_START("expression");
 
     compileTerm();
-    while (isOp(advance())) {
+    while (isOp(curr_token, false)) {
+        printXML(curr_token, g_token_types[curr_token->type]);
+        advance();
         compileTerm();
     }
-    pushback(NULL);
 
     NONTERM_PRINT_END("expression");
 }
@@ -99,11 +371,74 @@ void compileTerm()
 {
     NONTERM_PRINT_START("term");
 
-    switch (advance()->type) {
-    KEYWORD:
-
+    const enum token_type type = curr_token->type;
+    const enum token_type keyword = curr_token->fixed_val.keyword;
+    if (type == INT_CONST || type == STRING_CONST) {
+        printXML(curr_token, g_token_types[type]);
+        // printXML(curr_token, "BAR");
+        advance();
+    } else if (keyword == TRUE   || keyword == FALSE ||
+               keyword == NIL    || keyword == THIS) {
+        printXML(curr_token, g_token_types[type]);
+        // printXML(curr_token, "FOO");
+        advance();
+    } else if (process(IDENTIFIER, NULL, OPTNL)) { // varName
+        if (process(SYMBOL, '[', OPTNL)) {
+            compileExpression();
+            process(SYMBOL, ']', MAND);
+        } else {
+            struct token *identifier_p; // subroutineCall
+            copyToken(&identifier_p, curr_token);
+            if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
+                compileExpressionList();
+                process(SYMBOL, ')', MAND);
+            } else if (process(SYMBOL, '.', OPTNL)) {  // IDENTIFIER = className | varName
+                process(IDENTIFIER, NULL, MAND);
+                process(SYMBOL, '(', MAND);
+                compileExpressionList();
+                process(SYMBOL, ')', MAND);
+            }
+        }
+    } else if (process(SYMBOL, '(', OPTNL)) {
+        compileExpression();
+        process(SYMBOL, ')', MAND);
+    } else if (isOp(curr_token, true)) {
+        printXML(curr_token, g_token_types[curr_token->type]);
+        advance();
+        compileTerm();
+    } else {
     }
+
     NONTERM_PRINT_END("term");
 }
 
-// void printXMLToken()
+void compileExpressionList() {
+
+    NONTERM_PRINT_START("expressionList");
+
+    if (!(curr_token->type == SYMBOL && curr_token->fixed_val.symbol == ')')) {
+        compileExpression();
+        while (process(SYMBOL, ',', OPTNL)) {
+            compileExpression();
+        }
+    }
+
+    NONTERM_PRINT_END("expressionList");
+}
+
+void main()
+{
+    FILE* fp = fopen("Jack-files/Square/Main.jack", "r");
+    writer_fp = fopen("out.xml", "w+");
+    // printf("%u\n", writer_fp);
+    setTokenizerFile(fp);
+    if (fp == NULL) {
+        printf("FILE ERR\n");
+        return;
+    }
+    curr_token = malloc(sizeof (*curr_token) + (sizeof (curr_token->var_val[CURR_TOKEN_BUF_LEN])));
+    // writer_fp = stdout;
+
+    advance();
+    compileClass();
+}

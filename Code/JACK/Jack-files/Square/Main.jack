@@ -27,7 +27,7 @@ class Main {
         if (false) {
             let s = "string constant";
             let s = null;
-            let a[1] = "string again";  
+            let a[1] = a[2];
         }
         else {              // There is no else keyword in the Square files.
             let i = i * (-j);
@@ -37,5 +37,3 @@ class Main {
         return ;
     }
 }
-//foo-
-//(123 -456
