@@ -1,3 +1,6 @@
+#ifndef NANDTOTETRIS_COMPILATION_ENGINE
+#define NANDTOTETRIS_COMPILATION_ENGINE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -11,8 +14,11 @@ union process_data {
     char *pointer; // for NULL
 };
 
-bool process(enum token_type type, void *data, bool optional);
-// bool process(enum token_type type, union process_data data, bool optional);
+enum process_optional {
+    MAND = false, OPTNL = true
+};
+
+bool process(enum token_type type, void *data, enum process_optional optional);
 void printXML(const struct token *token_p, const char *grammar_elem);
 void compileCompileClass();
 void compileClassVarDec();
@@ -31,18 +37,6 @@ void compileTerm();
 void compileSubroutineCall();
 void compileExpressionList();
 
-// #define OPTNL true
-// #define MAND false
-
-enum process_optional {
-    MAND = false, OPTNL = true
-};
-
-#define COMPILE_ERR(err_name) { \
-    fprintf(stderr, "ERR: Invalid " err_name " on line: %d\n", g_curr_line); \
-    exit(1); \
-}
-
 #define NONTERM_PRINT_START(string) { \
     fprintf(writer_fp, "%*s<" string ">\n", g_indent_amount, ""); \
     g_indent_amount += INDENT_WIDTH; \
@@ -56,22 +50,53 @@ enum process_optional {
 #define XML_PRINTF(format_type, grammar_elem, value) \
     fprintf(writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem)
 
-
 #define INDENT_WIDTH 2
 
 static FILE *writer_fp;
+static char writer_name_buf[NAME_MAX];
 static uint g_indent_amount = 0;
+
+#define COMPILE_ERR(err_name) { \
+    fprintf(stderr, "%s\nERR: Invalid " err_name " on line: %d\n", writer_name_buf, g_curr_line); \
+    printToken(curr_token); \
+    exit(1); \
+}
+
+void setWriterOutputFile(FILE *fp, char *filename)
+{
+    writer_fp = fp;
+    g_indent_amount = 0;
+    strncpy(writer_name_buf, filename, sizeof (writer_name_buf));
+}
 
 void printXML(const struct token *token_p, const char *grammar_elem) {
     switch (token_p->type) {
     case KEYWORD:
         XML_PRINTF("s", grammar_elem, g_keywords[token_p->fixed_val.keyword]);
         break;
-    case SYMBOL:
-        XML_PRINTF("c", grammar_elem, token_p->fixed_val.symbol);
+    case SYMBOL: ; // HERE
+        char symbol = token_p->fixed_val.symbol;
+        switch (symbol) {
+        case '<':
+            XML_PRINTF("s", grammar_elem, "&lt;");
+            break;
+        case '>':
+            XML_PRINTF("s", grammar_elem, "&gt;");
+            break;
+        case '"':
+            XML_PRINTF("s", grammar_elem, "&quot;");
+            break;
+        case '&':
+            XML_PRINTF("s", grammar_elem, "&amp;");
+            break;
+        default:
+            XML_PRINTF("c", grammar_elem, symbol);
+            break;
+        }
         break;
     case IDENTIFIER:
     case INT_CONST:
+        // printf("%s\n", token_p->var_val);
     case STRING_CONST:
         XML_PRINTF("s", grammar_elem, token_p->var_val);
         break;
@@ -81,7 +106,7 @@ void printXML(const struct token *token_p, const char *grammar_elem) {
     }
 }
 
-bool process(enum token_type type, void *_data, bool optional)
+bool process(enum token_type type, void *_data, enum process_optional optional)
 {
     bool retval = false;
     union process_data data;
@@ -171,6 +196,7 @@ void compileSubroutine()
         process(KEYWORD, FUNCTION, OPTNL) ||
         process(KEYWORD, METHOD, MAND)) {}
     if (isType(curr_token)) {
+        printXML(curr_token, g_token_types[curr_token->type]);
         advance();
     } else {
         process(KEYWORD, VOID, MAND);
@@ -189,8 +215,15 @@ void compileParameterList()
     NONTERM_PRINT_START("parameterList");
 
     if (isType(curr_token)) {
+        printXML(curr_token, g_token_types[curr_token->type]);
+        advance();
         process(IDENTIFIER, NULL, MAND); // varName
         while (process(SYMBOL, ',', OPTNL)) {
+            if (!isType(curr_token)) {
+                COMPILE_ERR("type");
+            }
+            printXML(curr_token, g_token_types[curr_token->type]);
+            advance();
             process(IDENTIFIER, NULL, MAND); // varName
         }
     }
@@ -375,12 +408,10 @@ void compileTerm()
     const enum token_type keyword = curr_token->fixed_val.keyword;
     if (type == INT_CONST || type == STRING_CONST) {
         printXML(curr_token, g_token_types[type]);
-        // printXML(curr_token, "BAR");
         advance();
     } else if (keyword == TRUE   || keyword == FALSE ||
                keyword == NIL    || keyword == THIS) {
         printXML(curr_token, g_token_types[type]);
-        // printXML(curr_token, "FOO");
         advance();
     } else if (process(IDENTIFIER, NULL, OPTNL)) { // varName
         if (process(SYMBOL, '[', OPTNL)) {
@@ -426,19 +457,4 @@ void compileExpressionList() {
     NONTERM_PRINT_END("expressionList");
 }
 
-void main()
-{
-    FILE* fp = fopen("Jack-files/Square/Main.jack", "r");
-    writer_fp = fopen("out.xml", "w+");
-    // printf("%u\n", writer_fp);
-    setTokenizerFile(fp);
-    if (fp == NULL) {
-        printf("FILE ERR\n");
-        return;
-    }
-    curr_token = malloc(sizeof (*curr_token) + (sizeof (curr_token->var_val[CURR_TOKEN_BUF_LEN])));
-    // writer_fp = stdout;
-
-    advance();
-    compileClass();
-}
+#endif // NANDTOTETRIS_COM

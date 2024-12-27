@@ -1,9 +1,9 @@
 // --PROGRAM START--
-@256
+@261
 D=A
 @SP
 M=D
-Sys.init
+@Sys.init
 0;JMP
 //   --Class1 START--
 (Class1.set) // function Class1.set 0

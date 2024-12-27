@@ -8,6 +8,7 @@
 #include <string.h>
 #include <limits.h>
 #include <uchar.h>
+#include <unistd.h>
 #include "VMWriters.c"
 #include "../utilities.h"
 
@@ -26,8 +27,8 @@ int main(int argc, char* argv[])
     }
 
     bool parse_dir = false;
-    char* extension_p;
-    char* path_p = getFileName(argv[1]);
+    char *extension_p;
+    char *path_p = getFileName(argv[1]);
     if (checkExtension(path_p, &extension_p, "vm") == false) {
         if (extension_p[0] == '.') {
             fprintf(stderr, "file path: %s has invalid extension: %s\n", path_p, extension_p);
@@ -37,16 +38,17 @@ int main(int argc, char* argv[])
         parse_dir = true;
     }
 
-    FILE* f_input;
-    DIR* dir_input;
-    char output_name[MAX_PATH];
+    FILE *f_input;
+    DIR *dir_input;
+    char output_name[PATH_MAX];
     if (parse_dir) {
-        if ((dir_input = opendir(argv[1])) == NULL) {
-            fprintf(stderr, "cannot open: %s\n", argv[1]);
+        chdir(argv[1]);
+        if ((dir_input = opendir(".")) == NULL) {
+            fprintf(stderr, "cannot open directory: %s\n", argv[1]);
             retval = INVALID_DIR;
             goto exit;
         }
-        sprintf(output_name, "%s/%s%s", path_p, argv[1], ".asm");
+        sprintf(output_name, "%s%s", path_p, ".asm");
     } else {
         if ((f_input = fopen(argv[1], "r")) == NULL) {
             fprintf(stderr, "cannot open: %s\n", argv[1]);
@@ -57,6 +59,7 @@ int main(int argc, char* argv[])
         sprintf(output_name, "%s%s", argv[1], ".asm");
     }
 
+    printf("here? %s\n", output_name);
     FILE* f_output = fopen(output_name, "w");
     if (f_output == NULL) {
         fprintf(stderr, "cannot open output file: %s\n", argv[1]);
@@ -69,18 +72,18 @@ int main(int argc, char* argv[])
     if (parse_dir) {
         struct dirent* dirent_p;
         while ((dirent_p = readdir(dir_input)) != NULL) {
-            char d_name[NAME_MAX];
-            char path_name[PATH_MAX];
-            strncpy(d_name, dirent_p->d_name, sizeof (d_name));
-            sprintf(path_name, "%s/%s", path_p, d_name);
-            if (checkExtension(d_name, &extension_p, "vm") == false) continue;
-            if ((f_input = fopen(path_name, "r")) == NULL) {
-                fprintf(stderr, "cannot open: %s\n", d_name);
+            char d_name_buf[NAME_MAX];
+            strncpy(d_name_buf, dirent_p->d_name, sizeof (d_name_buf));
+            if (!checkExtension(d_name_buf, &extension_p, "vm")) {
+                continue;
+            }
+            if ((f_input = fopen(d_name_buf, "r")) == NULL) {
+                fprintf(stderr, "cannot open: %s\n", d_name_buf);
                 retval = INVALID_FILE;
                 break;
             }
             extension_p[0] = '\0';
-            parseFile(f_input, d_name);
+            parseFile(f_input, d_name_buf);
         }
     } else {
         if (parseFile(f_input, path_p) != 0) {

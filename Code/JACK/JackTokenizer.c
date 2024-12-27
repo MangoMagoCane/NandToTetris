@@ -1,9 +1,11 @@
+#ifndef NANDTOTETRIS_JACK_TOKENIZER
+#define NANDTOTETRIS_JACK_TOKENIZER
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
-#include <unistd.h>
 #include "../utilities.h"
 
 enum token_type {
@@ -14,6 +16,18 @@ enum keyword {
     CLASS, METHOD, FUNCTION, CONSTRUCTOR, INT, BOOLEAN, CHAR, VOID, VAR,
     STATIC, FIELD, LET, DO, IF, ELSE, WHILE, RETURN, TRUE, FALSE, NIL, THIS
 };
+
+struct token {
+    enum token_type type;
+    union {
+        enum keyword keyword;
+        char symbol;
+        uint len;
+    } fixed_val;
+    char var_val[];
+};
+
+#define freeToken(token_p) free(token_p)
 
 static const char *g_keywords[] = {
     "class", "method", "function", "constructor", "int", "boolean", "char", "void", "var",
@@ -29,15 +43,6 @@ const char *g_token_types[] = {
     "keyword", "symbol", "identifier", "integerConstant", "stringConstant"
 };
 
-struct token {
-    enum token_type type;
-    union {
-        enum keyword keyword;
-        char symbol;
-        uint len;
-    } fixed_val;
-    char var_val[];
-};
 
 #define LINE_BUF_LEN 1024
 #define CURR_TOKEN_BUF_LEN 1024
@@ -104,7 +109,6 @@ void copyToken(struct token **token_pp, struct token *token_p)
     memcpy(*token_pp, token_p, mem_size);
 }
 
-#define freeToken(token_p) free(token_p)
 
 void setTokenizerFile(FILE *fp)
 {
@@ -236,9 +240,12 @@ load_line:
     ptrdiff_t int_const_len = strtol_p - g_line_buf_p;
     if (int_const_len > 0) {
         curr_token->type = INT_CONST;
-        curr_token->fixed_val.len = int_const_len + 1; // + 1 for '\0'
         strncpy(curr_token->var_val, g_line_buf_p, int_const_len);
         strncpy(g_curr_token, g_line_buf_p, int_const_len);
+        curr_token->var_val[int_const_len] = '\0';
+        g_curr_token[int_const_len] = '\0';
+        curr_token->fixed_val.len = int_const_len + 1; // + 1 for '\0'
+        // printf("%s %s %d\n", curr_token->var_val, g_line_buf_p, int_const_len);
         g_line_buf_p += int_const_len;
         return curr_token;
     }
@@ -307,65 +314,9 @@ bool isType(struct token *token_p)
     return type == IDENTIFIER || (type == KEYWORD && (keyword == INT || keyword == CHAR || keyword == BOOLEAN));
 }
 
-// bool isStatement(struct token *token_p)
-// {
-//     static const enum keyword statements[] = {
-//         LET, DO, IF, WHILE, RETURN
-//     }
-//     static const uint STATEMENTS_LEN = LENGTHOF(statements);
-//
-//     if (token_p->type != KEYWORD) {
-//         return false;
-//     }
-//
-//     enum keyword keyword = token_p->fixed_val.keyword;
-//     for (uint i = 0; i < STATEMENTS_LEN; ++i) {
-//         if (keyword == keywords[i]) {
-//             return true;
-//         }
-//     }
-//
-//     return false;
-// }
-
 bool isIdentifier(struct token *token_p)
 {
     return token_p->type == IDENTIFIER;
 }
 
-// void main()
-// {
-//     FILE* fp = fopen("Jack-files/Square/Main.jack", "r");
-//     setTokenizerFile(fp);
-//     if (fp == NULL) {
-//         printf("FILE ERR\n");
-//         return;
-//     }
-//     curr_token = malloc(sizeof (*curr_token) + (sizeof (curr_token->var_val[CURR_TOKEN_BUF_LEN])));
-    // printf("'%s'", g_curr_token);
-
-    // advance();
-    // while (*g_curr_token) {
-    //     // printf("'%s'\n", g_curr_token);
-    //     // printf("%s_", g_curr_token);
-    //     // printf("\nTYPE: %d\n", curr_token->type);
-    //
-    //     switch (curr_token->type) {
-    //     case KEYWORD:
-    //         printf("%s_", g_keywords[curr_token->fixed_val.keyword]);
-    //         break;
-    //     case SYMBOL:
-    //         printf("%c_", curr_token->fixed_val.symbol);
-    //         break;
-    //     case INT_CONST:
-    //     case STRING_CONST:
-    //     case IDENTIFIER:
-    //         printf("%s_", curr_token->var_val);
-    //         break;
-    //     }
-    //     // sleep(2);
-    //     advance();
-    // }
-    // printf("\n");
-// }
-
+#endif // NANDTOTETRIS_JACK_TOKENIZER

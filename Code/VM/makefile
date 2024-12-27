@@ -1,3 +1,3 @@
 VMTranslator: VMTranslator.c VMWriters.c
-	gcc VMTranslator.c -o VMTranslator
+	gcc VMTranslator.c -std=gnu11 -o VMTranslator
 	chmod +x VMTranslator
