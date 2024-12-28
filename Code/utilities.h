@@ -1,8 +1,9 @@
 #ifndef NANDTOTETRIS_UTILITIES
 #define NANDTOTETRIS_UTILITIES
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 
 typedef unsigned int uint;
 
@@ -15,6 +16,7 @@ typedef enum err_t {
 } err_t ;
 
 #define LENGTHOF(arr) (sizeof (arr) / sizeof (arr[0]))
+#define MEMBER_SIZE(type, member) (sizeof (((type *) 0)->member))
 
 bool checkExtension(char* file_name_p, char** extension_pp, char extension[])
 {

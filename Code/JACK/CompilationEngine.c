@@ -1,4 +1,5 @@
 #ifndef NANDTOTETRIS_COMPILATION_ENGINE
+#define NANDTOTETRIS_COMPILATION_ENGINE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,6 +7,13 @@
 #include <string.h>
 #include "JackTokenizer.c"
 #include "../utilities.h"
+
+#define INDENT_WIDTH 2
+#define GLOBAL_SYMTAB_LEN 128
+#define SUBROUTINE_SYMTAB_LEN 128
+#define VARIABLE_SYMTAB_NAME_LEN 128
+#define VARIABLE_SYMTAB_TYPE_LEN 128
+#define VARIABLE_SYMTAB_KIND_LEN 7
 
 union process_data {
     enum keyword keyword;
@@ -17,8 +25,17 @@ enum process_optional {
     MAND = false, OPTNL = true
 };
 
-bool process(enum token_type type, void *data, enum process_optional optional);
+struct variable_symtab_entry {
+    uint entry_index;
+    char name[VARIABLE_SYMTAB_NAME_LEN]; // varName
+    char type[VARIABLE_SYMTAB_TYPE_LEN]; // int | bool | char | className
+    char kind[VARIABLE_SYMTAB_KIND_LEN]; // class-level: field | static, subroutine-level: arg | var
+};
+
+void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind);
+void setWriterOutputFile(FILE *fp, char *filename);
 void printXML(const struct token *token_p, const char *grammar_elem);
+bool process(enum token_type type, void *data, enum process_optional optional);
 void compileCompileClass();
 void compileClassVarDec();
 void compileSubroutine();
@@ -49,17 +66,47 @@ void compileExpressionList();
 #define XML_PRINTF(format_type, grammar_elem, value) \
     fprintf(writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem)
 
-#define INDENT_WIDTH 2
+#define COMPILE_ERR(err_name) { \
+    fprintf(stderr, "%s\nERR: Invalid " err_name " on line: %d\n", writer_name_buf, g_curr_line); \
+    printToken(curr_token); \
+    exit(1); \
+}
 
 static FILE *writer_fp;
 static char writer_name_buf[NAME_MAX];
 static uint g_indent_amount = 0;
 static bool g_print_xml = FALSE;
 
-#define COMPILE_ERR(err_name) { \
-    fprintf(stderr, "%s\nERR: Invalid " err_name " on line: %d\n", writer_name_buf, g_curr_line); \
-    printToken(curr_token); \
-    exit(1); \
+static struct variable_symtab_entry g_global_symtab[GLOBAL_SYMTAB_LEN];
+static struct variable_symtab_entry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
+
+void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind)
+{
+    uint entry_index = 0;
+    uint i;
+    for (i = 0; symtab[i].name[0] != '\0'; ++i) {
+        if (strcmp(symtab[i].name, name) == 0) {
+            COMPILE_ERR("reused variable name");
+        }
+        if (strcmp(symtab[i].kind, kind) == 0) {
+            entry_index++;
+        }
+    }
+    symtab[i].entry_index = entry_index;
+    strncpy(symtab[i].name, name, MEMBER_SIZE(struct variable_symtab_entry, name));
+    strncpy(symtab[i].type, type, MEMBER_SIZE(struct variable_symtab_entry, type));
+    strncpy(symtab[i].kind, kind, MEMBER_SIZE(struct variable_symtab_entry, kind));
+}
+
+struct variable_symtab_entry *searchSymtab(struct variable_symtab_entry *symtab, char *name)
+{
+    for (uint i = 0; symtab[i].name[0] != '\0'; ++i) {
+        if (strcmp(symtab[i].name, name) == 0) {
+            return &symtab[i];
+        }
+    }
+
+    return NULL;
 }
 
 void setWriterOutputFile(FILE *fp, char *filename)
@@ -67,6 +114,8 @@ void setWriterOutputFile(FILE *fp, char *filename)
     writer_fp = fp;
     g_indent_amount = 0;
     strncpy(writer_name_buf, filename, sizeof (writer_name_buf));
+    memset(g_subroutine_symtab, 0, sizeof (g_global_symtab));
+    memset(g_global_symtab, 0, sizeof (g_global_symtab));
 }
 
 void printXML(const struct token *token_p, const char *grammar_elem) {
@@ -252,16 +301,21 @@ void compileSubroutineBody()
 void compileVarDec()
 {
     NONTERM_PRINT_START("varDec");
+    char type_buf[MEMBER_SIZE(struct variable_symtab_entry, type)];
 
     process(KEYWORD, VAR, MAND);
-    // printf("%s\n", g_keywords[curr_token->fixed_val.keyword]);
     if (!isType(curr_token)) {
         COMPILE_ERR("type");
     }
+    strncpy(type_buf, g_token_types[curr_token->type], sizeof (type_buf));
     printXML(curr_token, g_token_types[curr_token->type]);
     advance();
+
+    addSymtabEntry(g_subroutine_symtab, curr_token->var_val, type_buf, "var");
     process(IDENTIFIER, NULL, MAND); // varName
+
     while (process(SYMBOL, ',', OPTNL)) {
+        addSymtabEntry(g_subroutine_symtab, curr_token->var_val, type_buf, "var");
         process(IDENTIFIER, NULL, MAND); // varName
     }
     process(SYMBOL, ';', MAND);
@@ -462,4 +516,4 @@ void compileExpressionList() {
     NONTERM_PRINT_END("expressionList");
 }
 
-#endif // NANDTOTETRIS_COMPILATION_ENGINE
+#endif // NANDTOTETRIS_COM

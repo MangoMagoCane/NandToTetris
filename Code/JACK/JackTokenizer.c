@@ -43,7 +43,6 @@ const char *g_token_types[] = {
     "keyword", "symbol", "identifier", "integerConstant", "stringConstant"
 };
 
-
 #define LINE_BUF_LEN 1024
 #define CURR_TOKEN_BUF_LEN 1024
 #define PUSHBACK_BUF_LEN 128
