@@ -1,4 +1,5 @@
-#ifndef NANDTOTETRIS_COMPILATION_ENGINE
+#ifndef NANDTOTETRIS_COMPILATION_ENGINE_XML
+#define NANDTOTETRIS_COMPILATION_ENGINE_XML
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -462,4 +463,4 @@ void compileExpressionList() {
     NONTERM_PRINT_END("expressionList");
 }
 
-#endif // NANDTOTETRIS_COMPILATION_ENGINE
+#endif // NANDTOTETRIS_COMPILATION_ENGINE_XML
