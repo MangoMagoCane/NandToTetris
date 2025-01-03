@@ -84,6 +84,23 @@ static bool g_print_xml = true;
 static struct variable_symtab_entry g_global_symtab[GLOBAL_SYMTAB_LEN];
 static struct variable_symtab_entry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
 
+struct variable_symtab_entry *lookupSymtabEntry(char *name)
+{
+    for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
+        if (strcpy(name, g_subroutine_symtab[i].name) == 0) {
+            return &g_subroutine_symtab[i];
+        }
+    }
+
+    for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
+        if (strcpy(name, g_global_symtab[i].name) == 0) {
+            return &g_global_symtab[i];
+        }
+    }
+
+    return NULL;
+}
+
 void printSymtabs()
 {
     struct variable_symtab_entry curr_entry;
@@ -242,15 +259,15 @@ void compileClass()
     process(SYMBOL, '}', MAND);
 
     NONTERM_PRINT_END("class");
-    // printSymtabs();
 }
 
 void compileClassVarDec()
 {
     NONTERM_PRINT_START("classVarDec");
     char type_buf[CURR_TOKEN_BUF_LEN];
-    char kind_buff[CURR_TOKEN_BUF_LEN];
+    char kind_buf[CURR_TOKEN_BUF_LEN];
 
+    strncpy(kind_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (kind_buf));
     if (process(KEYWORD, STATIC, OPTNL) || process(KEYWORD, FIELD, MAND)) {}
     if (!isType(curr_token)) {
         COMPILE_ERR("type");
@@ -264,12 +281,12 @@ void compileClassVarDec()
     advance();
 
     printf("-- %s\n", curr_token->var_val);
-    addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, "var");
+    addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, kind_buf);
     process(IDENTIFIER, NULL, MAND); // varName
  
     while (process(SYMBOL, ',', OPTNL)) {
         printf("-- %s\n", curr_token->var_val);
-        addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, "var");
+        addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, kind_buf);
         process(IDENTIFIER, NULL, MAND); // varName
     }
     process(SYMBOL, ';', MAND);
@@ -291,6 +308,7 @@ void compileSubroutine()
     } else {
         process(KEYWORD, VOID, MAND);
     }
+
     printf("%s\n", curr_token->var_val);
     process(IDENTIFIER, NULL, MAND); // subroutineName
     process(SYMBOL, '(', MAND);
@@ -305,17 +323,32 @@ void compileSubroutine()
 void compileParameterList()
 {
     NONTERM_PRINT_START("parameterList");
+    char type_buf[CURR_TOKEN_BUF_LEN];
 
     if (isType(curr_token)) {
-        printXML(curr_token, g_token_types[curr_token->type]);
+        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+        if (curr_token->type == IDENTIFIER) {
+            strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
+        } else {
+            strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
+        }
+
         advance();
+        addSymtabEntry(g_subroutine_symtab, curr_token->var_val, type_buf, "arg");
         process(IDENTIFIER, NULL, MAND); // varName
         while (process(SYMBOL, ',', OPTNL)) {
             if (!isType(curr_token)) {
                 COMPILE_ERR("type");
             }
-            printXML(curr_token, g_token_types[curr_token->type]);
+            printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+            if (curr_token->type == IDENTIFIER) {
+                strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
+            } else {
+                strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
+            }
+
             advance();
+            addSymtabEntry(g_subroutine_symtab, curr_token->var_val, type_buf, "arg");
             process(IDENTIFIER, NULL, MAND); // varName
         }
     }
@@ -340,7 +373,7 @@ void compileSubroutineBody()
 void compileVarDec()
 {
     NONTERM_PRINT_START("varDec");
-    char type_buf[MEMBER_SIZE(struct variable_symtab_entry, type)];
+    char type_buf[CURR_TOKEN_BUF_LEN];
 
     process(KEYWORD, VAR, MAND);
     if (!isType(curr_token)) {
