@@ -10,14 +10,15 @@
  * */
 
 class Main {
+    static int a, b, c;
     static boolean test;    // Added for testing -- there is no static keyword
                             // in the Square files.
     function void main() {
-      var SquareGame game; // 
-      let game = SquareGame.new();
-      do game.run();
-      do game.dispose();
-      return;
+        var SquareGame game; // 
+        let game = SquareGame.new();
+        do game.run();
+        do game.dispose();
+        return;
     }
 
     function void more() {  // Added to test Jack syntax that is not used in
@@ -34,6 +35,6 @@ class Main {
             let j = j / (-2);   // note: unary negate constant 2
             let i = i | j;
         }
-        return ;
+        return;
     }
 }

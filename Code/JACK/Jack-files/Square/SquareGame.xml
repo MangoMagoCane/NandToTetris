@@ -292,13 +292,11 @@
       <symbol> { </symbol>
       <varDec>
         <keyword> var </keyword>
-        <keyword> char </keyword>
         <identifier> key </identifier>
         <symbol> ; </symbol>
       </varDec>
       <varDec>
         <keyword> var </keyword>
-        <keyword> boolean </keyword>
         <identifier> exit </identifier>
         <symbol> ; </symbol>
       </varDec>

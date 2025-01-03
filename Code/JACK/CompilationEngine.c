@@ -32,11 +32,12 @@ struct variable_symtab_entry {
     char kind[VARIABLE_SYMTAB_KIND_LEN]; // class-level: field | static, subroutine-level: arg | var
 };
 
+void printSymtabs();
 void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind);
 void setWriterOutputFile(FILE *fp, char *filename);
 void printXML(const struct token *token_p, const char *grammar_elem);
 bool process(enum token_type type, void *data, enum process_optional optional);
-void compileCompileClass();
+void compileClass();
 void compileClassVarDec();
 void compileSubroutine();
 void compileParameterList();
@@ -72,13 +73,35 @@ void compileExpressionList();
     exit(1); \
 }
 
+#define RESET_SYMTAB(symtab) \
+    memset(symtab, 0, sizeof (symtab))
+
 static FILE *writer_fp;
 static char writer_name_buf[NAME_MAX];
 static uint g_indent_amount = 0;
-static bool g_print_xml = FALSE;
+static bool g_print_xml = true;
 
 static struct variable_symtab_entry g_global_symtab[GLOBAL_SYMTAB_LEN];
 static struct variable_symtab_entry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
+
+void printSymtabs()
+{
+    struct variable_symtab_entry curr_entry;
+    printf("global\n");
+    // printf("\n");
+    for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
+        curr_entry = g_global_symtab[i];
+        printf("| %-7s | %-10s | %-3d | %s\n",
+               curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
+    }
+
+    printf("subroutine\n");
+    for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
+        curr_entry = g_subroutine_symtab[i];
+        printf("| %-7s | %-10s | %-3d | %s\n",
+               curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
+    }
+}
 
 void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind)
 {
@@ -114,8 +137,6 @@ void setWriterOutputFile(FILE *fp, char *filename)
     writer_fp = fp;
     g_indent_amount = 0;
     strncpy(writer_name_buf, filename, sizeof (writer_name_buf));
-    memset(g_subroutine_symtab, 0, sizeof (g_global_symtab));
-    memset(g_global_symtab, 0, sizeof (g_global_symtab));
 }
 
 void printXML(const struct token *token_p, const char *grammar_elem) {
@@ -197,6 +218,7 @@ bool process(enum token_type type, void *_data, enum process_optional optional)
 void compileClass()
 {
     NONTERM_PRINT_START("class");
+    RESET_SYMTAB(g_global_symtab);
 
     process(KEYWORD, CLASS, MAND);
     process(IDENTIFIER, NULL, MAND); // className
@@ -220,20 +242,34 @@ void compileClass()
     process(SYMBOL, '}', MAND);
 
     NONTERM_PRINT_END("class");
+    // printSymtabs();
 }
 
 void compileClassVarDec()
 {
     NONTERM_PRINT_START("classVarDec");
+    char type_buf[CURR_TOKEN_BUF_LEN];
+    char kind_buff[CURR_TOKEN_BUF_LEN];
 
     if (process(KEYWORD, STATIC, OPTNL) || process(KEYWORD, FIELD, MAND)) {}
     if (!isType(curr_token)) {
         COMPILE_ERR("type");
     }
+    if (curr_token->type == IDENTIFIER) {
+        strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
+    } else {
+        strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
+    }
     printXML(curr_token, g_token_types[curr_token->type]);
     advance();
+
+    printf("-- %s\n", curr_token->var_val);
+    addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, "var");
     process(IDENTIFIER, NULL, MAND); // varName
+ 
     while (process(SYMBOL, ',', OPTNL)) {
+        printf("-- %s\n", curr_token->var_val);
+        addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, "var");
         process(IDENTIFIER, NULL, MAND); // varName
     }
     process(SYMBOL, ';', MAND);
@@ -244,6 +280,7 @@ void compileClassVarDec()
 void compileSubroutine()
 {
     NONTERM_PRINT_START("subroutineDec");
+    RESET_SYMTAB(g_subroutine_symtab);
 
     if (process(KEYWORD, CONSTRUCTOR, OPTNL) ||
         process(KEYWORD, FUNCTION, OPTNL) ||
@@ -254,6 +291,7 @@ void compileSubroutine()
     } else {
         process(KEYWORD, VOID, MAND);
     }
+    printf("%s\n", curr_token->var_val);
     process(IDENTIFIER, NULL, MAND); // subroutineName
     process(SYMBOL, '(', MAND);
     compileParameterList();
@@ -261,6 +299,7 @@ void compileSubroutine()
     compileSubroutineBody();
 
     NONTERM_PRINT_END("subroutineDec");
+    printSymtabs();
 }
 
 void compileParameterList()
@@ -307,7 +346,11 @@ void compileVarDec()
     if (!isType(curr_token)) {
         COMPILE_ERR("type");
     }
-    strncpy(type_buf, g_token_types[curr_token->type], sizeof (type_buf));
+    if (curr_token->type == IDENTIFIER) {
+        strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
+    } else {
+        strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
+    }
     printXML(curr_token, g_token_types[curr_token->type]);
     advance();
 
@@ -356,7 +399,7 @@ void compileLet()
     NONTERM_PRINT_START("letStatement");
 
     process(KEYWORD, LET, MAND);
-    if (!isIdentifier(curr_token)) {
+    if (curr_token->type != IDENTIFIER) {
         COMPILE_ERR("variable name");
     }
     printXML(curr_token, g_token_types[curr_token->type]);

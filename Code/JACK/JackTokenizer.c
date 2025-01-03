@@ -27,7 +27,12 @@ struct token {
     char var_val[];
 };
 
-#define freeToken(token_p) free(token_p)
+#define freeToken(token_p) \
+    free(token_p)
+#define TOKEN_TYPE_STR(token_p) \
+    g_token_types[token_p->type]
+#define TOKEN_KEYWORD_STR(token_p) \
+    g_keywords[token_p->fixed_val.keyword]
 
 static const char *g_keywords[] = {
     "class", "method", "function", "constructor", "int", "boolean", "char", "void", "var",
