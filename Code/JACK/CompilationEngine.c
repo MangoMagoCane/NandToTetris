@@ -1,7 +1,9 @@
+
 #ifndef NANDTOTETRIS_COMPILATION_ENGINE
 #define NANDTOTETRIS_COMPILATION_ENGINE
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
@@ -22,7 +24,7 @@ union process_data {
 };
 
 enum process_optional {
-    MAND = false, OPTNL = true
+    MAND, OPTNL= true
 };
 
 struct variable_symtab_entry {
@@ -36,7 +38,7 @@ void printSymtabs();
 void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind);
 void setWriterOutputFile(FILE *fp, char *filename);
 void printXML(const struct token *token_p, const char *grammar_elem);
-bool process(enum token_type type, void *data, enum process_optional optional);
+bool process(enum token_type type, uint64_t data, enum process_optional optional);
 void compileClass();
 void compileClassVarDec();
 void compileSubroutine();
@@ -197,11 +199,12 @@ void printXML(const struct token *token_p, const char *grammar_elem) {
     }
 }
 
-bool process(enum token_type type, void *_data, enum process_optional optional)
+bool process(enum token_type type, uint64_t _data, enum process_optional optional)
 {
     bool retval = false;
     union process_data data;
     data.pointer = _data;
+
     if (type == curr_token->type) {
         switch (curr_token->type) {
         case KEYWORD:
@@ -225,7 +228,7 @@ bool process(enum token_type type, void *_data, enum process_optional optional)
     if (retval) {
         printXML(curr_token, g_token_types[type]);
         advance();
-    } else if (!optional) {
+    } else if (optional == MAND) {
         COMPILE_ERR("token");
     }
 
