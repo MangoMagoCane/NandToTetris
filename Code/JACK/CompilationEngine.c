@@ -1,4 +1,3 @@
-
 #ifndef NANDTOTETRIS_COMPILATION_ENGINE
 #define NANDTOTETRIS_COMPILATION_ENGINE
 
@@ -24,7 +23,7 @@ union process_data {
 };
 
 enum process_optional {
-    MAND, OPTNL= true
+    MAND, OPTNL
 };
 
 struct variable_symtab_entry {
@@ -107,7 +106,6 @@ void printSymtabs()
 {
     struct variable_symtab_entry curr_entry;
     printf("global\n");
-    // printf("\n");
     for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
         curr_entry = g_global_symtab[i];
         printf("| %-7s | %-10s | %-3d | %s\n",
