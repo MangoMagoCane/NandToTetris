@@ -28,7 +28,6 @@ struct token {
     char var_val[];
 };
 
-
 void printToken(struct token *token_p);
 void copyToken(struct token **token_pp, struct token *token_p);
 void setTokenizerFile(FILE *fp);
@@ -55,9 +54,19 @@ static const char g_symbols[] = {
     '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'
 };
 
+static const char g_ops[] = {
+    '+', '-', '*', '/', '&', '|', '<', '>', '='
+};
+static const char g_unary_ops[] = {
+    '-', '~'
+};
+
 const char *g_token_types[] = {
     "keyword", "symbol", "identifier", "integerConstant", "stringConstant"
 };
+
+#define OP_LEN LENGTHOF(g_ops)
+#define UNARY_OP_LEN LENGTHOF(g_unary_ops)
 
 #define LINE_BUF_LEN 1024
 #define CURR_TOKEN_BUF_LEN 1024
@@ -104,26 +113,25 @@ void printToken(struct token *token_p)
 
 void copyToken(struct token **token_pp, struct token *token_p)
 {
-    size_t mem_size;
+    size_t mem_size = sizeof (*token_p);
     switch (token_p->type) {
     case KEYWORD:
     case SYMBOL:
-        mem_size = sizeof (*token_p);
         break;
     case IDENTIFIER:
     case INT_CONST:
     case STRING_CONST:
-        mem_size = sizeof (*token_p) + token_p->fixed_val.len * sizeof (token_p->var_val[0]);
+        mem_size += token_p->fixed_val.len * sizeof (token_p->var_val[0]);
         break;
     default:
         fprintf(stderr, "ERR: Invalid token type: %d", token_p->type);
         *token_pp = NULL;
         return;
     }
+
     *token_pp = malloc(mem_size);
     memcpy(*token_pp, token_p, mem_size);
 }
-
 
 void setTokenizerFile(FILE *fp)
 {
@@ -294,14 +302,6 @@ load_line:
 
 bool isOp(struct token *token_p, bool is_unary)
 {
-    static const char ops[] = {
-      '+', '-', '*', '/', '&', '|', '<', '>', '='
-    };
-    static const char unary_ops[] = {
-      '-', '~'
-    };
-    static const uint OP_LEN = LENGTHOF(ops);
-    static const uint UNARY_OP_LEN = LENGTHOF(unary_ops);
 
     if (token_p->type != SYMBOL) {
         return false;
@@ -310,10 +310,10 @@ bool isOp(struct token *token_p, bool is_unary)
     const char *arr_p;
     uint len;
     if (is_unary) {
-        arr_p = unary_ops;
+        arr_p = g_unary_ops;
         len = UNARY_OP_LEN;
     } else {
-        arr_p = ops;
+        arr_p = g_ops;
         len = OP_LEN;
     }
 

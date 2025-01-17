@@ -55,7 +55,8 @@ void compileReturn();
 void compileExpression();
 void compileTerm();
 void compileSubroutineCall();
-void compileExpressionList();
+uint compileExpressionList();
+static const char *convertOpToVM(char op, bool isUnary);
 
 #define NONTERM_PRINT_START(string) { \
     fprintf(g_writer_fp, "%*s<" string ">\n", g_indent_amount, ""); \
@@ -92,13 +93,13 @@ static struct variable_symtab_entry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
 struct variable_symtab_entry *lookupSymtabEntry(char *name)
 {
     for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
-        if (strcpy(name, g_subroutine_symtab[i].name) == 0) {
+        if (strcmp(name, g_subroutine_symtab[i].name) == 0) {
             return &g_subroutine_symtab[i];
         }
     }
 
     for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
-        if (strcpy(name, g_global_symtab[i].name) == 0) {
+        if (strcmp(name, g_global_symtab[i].name) == 0) {
             return &g_global_symtab[i];
         }
     }
@@ -108,6 +109,7 @@ struct variable_symtab_entry *lookupSymtabEntry(char *name)
 
 void printSymtabs(bool global, bool sub)
 {
+    return;
     struct variable_symtab_entry curr_entry;
 
     if (global) {
@@ -295,12 +297,12 @@ void compileClassVarDec()
     printXML(curr_token, g_token_types[curr_token->type]);
     advance();
 
-    printf("-- %s\n", curr_token->var_val);
+    // printf("-- %s\n", curr_token->var_val);
     addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, kind_buf);
     process(IDENTIFIER, NULL, MAND); // varName
  
     while (process(SYMBOL, ',', OPTNL)) {
-        printf("-- %s\n", curr_token->var_val);
+        // printf("-- %s\n", curr_token->var_val);
         addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, kind_buf);
         process(IDENTIFIER, NULL, MAND); // varName
     }
@@ -327,7 +329,7 @@ void compileSubroutine()
         process(KEYWORD, VOID, MAND);
     }
 
-    printf("%s()\n", curr_token->var_val);
+    // printf("%s()\n", curr_token->var_val);
     process(IDENTIFIER, NULL, MAND); // subroutineName
     process(SYMBOL, '(', MAND);
     compileParameterList();
@@ -546,9 +548,11 @@ void compileExpression()
 
     compileTerm();
     while (isOp(curr_token, false)) {
+        const char *vm_op_p = convertOpToVM(curr_token->fixed_val.symbol, false);
         printXML(curr_token, g_token_types[curr_token->type]);
         advance();
         compileTerm();
+        printf("%s\n", vm_op_p);
     }
 
     NONTERM_PRINT_END("expression");
@@ -560,55 +564,100 @@ void compileTerm()
 
     const enum token_type type = curr_token->type;
     const enum token_type keyword = curr_token->fixed_val.keyword;
-    if (type == INT_CONST || type == STRING_CONST) {
+    bool single_token_term = true;
+
+    if (type == INT_CONST) {
+        printf("push %s\n", curr_token->var_val);
+    } else if (type == STRING_CONST) { // NOT IMPLEMENTED
+    } else if (keyword == TRUE) {
+        printf("push constant 1\n");
+        printf("push neg\n");
+    } else if (keyword == FALSE || keyword == NIL) {
+        printf("push constant 0\n");
+    } else if (keyword == THIS) { // NOT IMPLEMENTED
+    } else {
+        single_token_term = false;
+    }
+
+    if (single_token_term) {
         printXML(curr_token, g_token_types[type]);
         advance();
-    } else if (keyword == TRUE   || keyword == FALSE ||
-               keyword == NIL    || keyword == THIS) {
-        printXML(curr_token, g_token_types[type]);
-        advance();
-    } else if (process(IDENTIFIER, NULL, OPTNL)) { // varName
+        NONTERM_PRINT_END("term");
+        return;
+    }
+
+    struct token *identifier_p; // subroutineCall
+    uint expression_count;
+
+    copyToken(&identifier_p, curr_token);
+    if (process(IDENTIFIER, NULL, OPTNL)) { // varName
         if (process(SYMBOL, '[', OPTNL)) {
             compileExpression();
             process(SYMBOL, ']', MAND);
+        } else if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
+            expression_count = compileExpressionList();
+            printf("call %s %d\n", identifier_p->var_val, expression_count);
+            process(SYMBOL, ')', MAND);
+        } else if (process(SYMBOL, '.', OPTNL)) {  // IDENTIFIER = className | varName
+            process(IDENTIFIER, NULL, MAND);
+            process(SYMBOL, '(', MAND);
+            expression_count = compileExpressionList();
+            process(SYMBOL, ')', MAND);
         } else {
-            struct token *identifier_p; // subroutineCall
-            copyToken(&identifier_p, curr_token);
-            if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
-                compileExpressionList();
-                process(SYMBOL, ')', MAND);
-            } else if (process(SYMBOL, '.', OPTNL)) {  // IDENTIFIER = className | varName
-                process(IDENTIFIER, NULL, MAND);
-                process(SYMBOL, '(', MAND);
-                compileExpressionList();
-                process(SYMBOL, ')', MAND);
-            }
+            printf("push %s\n", identifier_p->var_val);
         }
     } else if (process(SYMBOL, '(', OPTNL)) {
         compileExpression();
         process(SYMBOL, ')', MAND);
     } else if (isOp(curr_token, true)) {
+        const char *vm_op_p = convertOpToVM(curr_token->fixed_val.symbol, true);
         printXML(curr_token, g_token_types[curr_token->type]);
         advance();
         compileTerm();
-    } else {
+        printf("%s\n", vm_op_p);
+    } else { // should error??
     }
 
     NONTERM_PRINT_END("term");
 }
 
-void compileExpressionList() {
+uint compileExpressionList() {
 
     NONTERM_PRINT_START("expressionList");
 
-    if (!(curr_token->type == SYMBOL && curr_token->fixed_val.symbol == ')')) {
+    uint expression_count = 0;
+    if (curr_token->type != SYMBOL || curr_token->fixed_val.symbol != ')') {
+        expression_count++;
         compileExpression();
         while (process(SYMBOL, ',', OPTNL)) {
+            expression_count++;
             compileExpression();
         }
     }
 
     NONTERM_PRINT_END("expressionList");
+    return expression_count;
+}
+
+static const char *convertOpToVM(char op, bool isUnary) {
+    static const char *op_mappings[] = {
+        "add", "sub", "Math.multiply 2", "Math.divide 2",
+        "and", "or", "lt", "gt", "eq"
+    };
+
+    if (isUnary) {
+        if (op == '-') {
+            return "neg";
+        } else if (op == '~') {
+            return "not";
+        }
+    }
+
+    for (uint i = 0; i < OP_LEN; ++i) {
+        if (op == g_ops[i]) {
+            return op_mappings[i];
+        }
+    }
 }
 
 #endif // NANDTOTETRIS_COM

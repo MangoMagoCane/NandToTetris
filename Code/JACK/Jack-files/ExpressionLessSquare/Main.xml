@@ -13,7 +13,7 @@
     <symbol> ; </symbol>
   </classVarDec>
   <subroutineDec>
-    <keyword> method </keyword>
+    <keyword> function </keyword>
     <keyword> void </keyword>
     <identifier> main </identifier>
     <symbol> ( </symbol>
@@ -41,6 +41,13 @@
           <expression>
             <term>
               <identifier> game </identifier>
+            </term>
+            <symbol> + </symbol>
+            <term>
+              <symbol> - </symbol>
+              <term>
+                <identifier> foo </identifier>
+              </term>
             </term>
           </expression>
           <symbol> ; </symbol>
@@ -76,7 +83,7 @@
     </subroutineBody>
   </subroutineDec>
   <subroutineDec>
-    <keyword> method </keyword>
+    <keyword> function </keyword>
     <keyword> void </keyword>
     <identifier> more </identifier>
     <symbol> ( </symbol>
