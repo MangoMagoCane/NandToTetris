@@ -1,6 +1,7 @@
 #ifndef NANDTOTETRIS_JACK_TOKENIZER
 #define NANDTOTETRIS_JACK_TOKENIZER
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -26,6 +27,16 @@ struct token {
     } fixed_val;
     char var_val[];
 };
+
+
+void printToken(struct token *token_p);
+void copyToken(struct token **token_pp, struct token *token_p);
+void setTokenizerFile(FILE *fp);
+void pushback(struct token *token_p);
+struct token *advance();
+bool isOp(struct token *token_p, bool is_unary);
+bool isType(struct token *token_p);
+bool isIdentifier(struct token *token_p);
 
 #define freeToken(token_p) \
     free(token_p)
@@ -136,6 +147,13 @@ void pushback(struct token *token_p) {
     }
     copyToken(&g_pushback_buf[g_pushback_i++], token_p);
 }
+
+struct token *advance_tmp() {
+    struct token *retval = advance();
+    printf("tok: %s\n", g_curr_token);
+    return retval;
+}
+
 
 struct token *advance()
 {
@@ -255,7 +273,7 @@ load_line:
     }
 
     uint i = 0;
-    while ((c = *g_line_buf_p++) == '_' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+    while ((c = *g_line_buf_p++) == '_' || isalnum(c)) {
         g_curr_token[i++] = c;
     }
     if (i > 0) {
@@ -322,5 +340,7 @@ bool isIdentifier(struct token *token_p)
 {
     return token_p->type == IDENTIFIER;
 }
+
+#define advance() advance()
 
 #endif // NANDTOTETRIS_JACK_TOKENIZER

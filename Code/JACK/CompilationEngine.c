@@ -33,7 +33,7 @@ struct variable_symtab_entry {
     char kind[VARIABLE_SYMTAB_KIND_LEN]; // class-level: field | static, subroutine-level: arg | var
 };
 
-void printSymtabs();
+void printSymtabs(bool global, bool sub);
 void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind);
 void setWriterOutputFile(FILE *fp, char *filename);
 void printXML(const struct token *token_p, const char *grammar_elem);
@@ -65,8 +65,9 @@ void compileExpressionList();
     fprintf(writer_fp, "%*s</" string ">\n", g_indent_amount, ""); \
 }
 
-#define XML_PRINTF(format_type, grammar_elem, value) \
-    fprintf(writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem)
+#define XML_PRINTF(format_type, grammar_elem, value) { \
+    fprintf(writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem); \
+}
 
 #define COMPILE_ERR(err_name) { \
     fprintf(stderr, "%s\nERR: Invalid " err_name " on line: %d\n", writer_name_buf, g_curr_line); \
@@ -74,8 +75,9 @@ void compileExpressionList();
     exit(1); \
 }
 
-#define RESET_SYMTAB(symtab) \
-    memset(symtab, 0, sizeof (symtab))
+#define RESET_SYMTAB(symtab) { \
+    memset(symtab, 0, sizeof (symtab)); \
+}
 
 static FILE *writer_fp;
 static char writer_name_buf[NAME_MAX];
@@ -102,21 +104,26 @@ struct variable_symtab_entry *lookupSymtabEntry(char *name)
     return NULL;
 }
 
-void printSymtabs()
+void printSymtabs(bool global, bool sub)
 {
     struct variable_symtab_entry curr_entry;
-    printf("global\n");
-    for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
-        curr_entry = g_global_symtab[i];
-        printf("| %-7s | %-10s | %-3d | %s\n",
-               curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
+
+    if (global) {
+        printf("global\n");
+        for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
+            curr_entry = g_global_symtab[i];
+            printf("| %-7s | %-10s | %-3d | %s\n",
+                curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
+        }
     }
 
-    printf("subroutine\n");
-    for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
-        curr_entry = g_subroutine_symtab[i];
-        printf("| %-7s | %-10s | %-3d | %s\n",
-               curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
+    if (sub) {
+        printf("subroutine\n");
+        for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
+            curr_entry = g_subroutine_symtab[i];
+            printf("| %-7s | %-10s | %-3d | %s\n",
+                curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
+        }
     }
 }
 
@@ -259,6 +266,7 @@ void compileClass()
     }
     process(SYMBOL, '}', MAND);
 
+    printSymtabs(true, false);
     NONTERM_PRINT_END("class");
 }
 
@@ -310,15 +318,15 @@ void compileSubroutine()
         process(KEYWORD, VOID, MAND);
     }
 
-    printf("%s\n", curr_token->var_val);
+    printf("%s()\n", curr_token->var_val);
     process(IDENTIFIER, NULL, MAND); // subroutineName
     process(SYMBOL, '(', MAND);
     compileParameterList();
     process(SYMBOL, ')', MAND);
     compileSubroutineBody();
 
+    printSymtabs(false, true);
     NONTERM_PRINT_END("subroutineDec");
-    printSymtabs();
 }
 
 void compileParameterList()

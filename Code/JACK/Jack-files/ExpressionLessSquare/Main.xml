@@ -6,6 +6,10 @@
     <keyword> static </keyword>
     <keyword> boolean </keyword>
     <identifier> test </identifier>
+    <symbol> , </symbol>
+    <identifier> test2 </identifier>
+    <symbol> , </symbol>
+    <identifier> test3 </identifier>
     <symbol> ; </symbol>
   </classVarDec>
   <subroutineDec>
@@ -14,6 +18,11 @@
     <identifier> main </identifier>
     <symbol> ( </symbol>
     <parameterList>
+      <keyword> int </keyword>
+      <identifier> foo </identifier>
+      <symbol> , </symbol>
+      <identifier> Doggy </identifier>
+      <identifier> bar </identifier>
     </parameterList>
     <symbol> ) </symbol>
     <subroutineBody>
