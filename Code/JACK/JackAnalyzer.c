@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 
     bool parse_dir = false;
     char* extension_p;
-    char* path_p = getFileName(argv[1]);
+    char* path_p = getFilename(argv[1]);
     if (checkExtension(path_p, &extension_p, "jack") == false) {
         if (extension_p[0] == '.') {
             fprintf(stderr, "file path: %s has invalid extension: %s\n", path_p, extension_p);

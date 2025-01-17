@@ -148,12 +148,11 @@ void pushback(struct token *token_p) {
     copyToken(&g_pushback_buf[g_pushback_i++], token_p);
 }
 
-struct token *advance_tmp() {
+struct token *advance_() {
     struct token *retval = advance();
     printf("tok: %s\n", g_curr_token);
     return retval;
 }
-
 
 struct token *advance()
 {
@@ -267,7 +266,6 @@ load_line:
         curr_token->var_val[int_const_len] = '\0';
         g_curr_token[int_const_len] = '\0';
         curr_token->fixed_val.len = int_const_len + 1; // + 1 for '\0'
-        // printf("%s %s %d\n", curr_token->var_val, g_line_buf_p, int_const_len);
         g_line_buf_p += int_const_len;
         return curr_token;
     }
@@ -341,6 +339,6 @@ bool isIdentifier(struct token *token_p)
     return token_p->type == IDENTIFIER;
 }
 
-#define advance() advance()
+// #define advance() advance_()
 
 #endif // NANDTOTETRIS_JACK_TOKENIZER

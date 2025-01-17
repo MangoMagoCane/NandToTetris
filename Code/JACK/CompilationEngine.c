@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/param.h>
 #include "JackTokenizer.c"
 #include "../utilities.h"
 
@@ -33,6 +34,7 @@ struct variable_symtab_entry {
     char kind[VARIABLE_SYMTAB_KIND_LEN]; // class-level: field | static, subroutine-level: arg | var
 };
 
+struct variable_symtab_entry *lookupSymtabEntry(char *name);
 void printSymtabs(bool global, bool sub);
 void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind);
 void setWriterOutputFile(FILE *fp, char *filename);
@@ -56,21 +58,21 @@ void compileSubroutineCall();
 void compileExpressionList();
 
 #define NONTERM_PRINT_START(string) { \
-    fprintf(writer_fp, "%*s<" string ">\n", g_indent_amount, ""); \
+    fprintf(g_writer_fp, "%*s<" string ">\n", g_indent_amount, ""); \
     g_indent_amount += INDENT_WIDTH; \
 }
 
 #define NONTERM_PRINT_END(string) { \
     g_indent_amount -= INDENT_WIDTH; \
-    fprintf(writer_fp, "%*s</" string ">\n", g_indent_amount, ""); \
+    fprintf(g_writer_fp, "%*s</" string ">\n", g_indent_amount, ""); \
 }
 
 #define XML_PRINTF(format_type, grammar_elem, value) { \
-    fprintf(writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem); \
+    fprintf(g_writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem); \
 }
 
 #define COMPILE_ERR(err_name) { \
-    fprintf(stderr, "%s\nERR: Invalid " err_name " on line: %d\n", writer_name_buf, g_curr_line); \
+    fprintf(stderr, "%s\nERR: Invalid " err_name " on line: %d\n", g_writer_name_buf, g_curr_line); \
     printToken(curr_token); \
     exit(1); \
 }
@@ -79,8 +81,8 @@ void compileExpressionList();
     memset(symtab, 0, sizeof (symtab)); \
 }
 
-static FILE *writer_fp;
-static char writer_name_buf[NAME_MAX];
+static FILE *g_writer_fp;
+static char g_writer_name_buf[NAME_MAX];
 static uint g_indent_amount = 0;
 static bool g_print_xml = true;
 
@@ -156,11 +158,15 @@ struct variable_symtab_entry *searchSymtab(struct variable_symtab_entry *symtab,
     return NULL;
 }
 
-void setWriterOutputFile(FILE *fp, char *filename)
+void setWriterOutputFile(FILE *fp, char *file_path)
 {
-    writer_fp = fp;
+    g_writer_fp = fp;
     g_indent_amount = 0;
-    strncpy(writer_name_buf, filename, sizeof (writer_name_buf));
+    char *extension_p;
+    char *filename_p = getFilename(file_path);
+    checkExtension(filename_p, &extension_p, "xml");
+    size_t filename_len = MIN(extension_p - filename_p, sizeof (g_writer_name_buf));
+    strncpy(g_writer_name_buf, filename_p, filename_len);
 }
 
 void printXML(const struct token *token_p, const char *grammar_elem) {
@@ -308,9 +314,12 @@ void compileSubroutine()
     NONTERM_PRINT_START("subroutineDec");
     RESET_SYMTAB(g_subroutine_symtab);
 
-    if (process(KEYWORD, CONSTRUCTOR, OPTNL) ||
-        process(KEYWORD, FUNCTION, OPTNL) ||
-        process(KEYWORD, METHOD, MAND)) {}
+    if (process(KEYWORD, CONSTRUCTOR, OPTNL)) {
+    } else if (process(KEYWORD, FUNCTION, OPTNL)) {
+    } else if (process(KEYWORD, METHOD, MAND)) {
+        addSymtabEntry(g_subroutine_symtab, "this", g_writer_name_buf, "arg");
+    }
+
     if (isType(curr_token)) {
         printXML(curr_token, g_token_types[curr_token->type]);
         advance();
@@ -326,6 +335,7 @@ void compileSubroutine()
     compileSubroutineBody();
 
     printSymtabs(false, true);
+
     NONTERM_PRINT_END("subroutineDec");
 }
 

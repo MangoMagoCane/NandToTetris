@@ -13,15 +13,15 @@ typedef enum err_t {
     INVALID_DIR,
     INVALID_FILE_EXTNSN,
     FAILED_MALLOC
-} err_t ;
+} err_t;
 
 #define LENGTHOF(arr) (sizeof (arr) / sizeof (arr[0]))
 #define MEMBER_SIZE(type, member) (sizeof (((type *) 0)->member))
 
-bool checkExtension(char* file_name_p, char** extension_pp, char extension[])
+bool checkExtension(char *filename_p, char **extension_pp, char *extension)
 {
-    char* p = file_name_p;
-    char* dot_p = NULL;
+    char *p = filename_p;
+    char *dot_p = NULL;
 
     while (*p) {
         if (*p == '.') {
@@ -30,8 +30,8 @@ bool checkExtension(char* file_name_p, char** extension_pp, char extension[])
         p++;
     }
 
-    if (!dot_p || dot_p == file_name_p || strcmp(&dot_p[1], extension) != 0) {
-        *extension_pp = &p[-1];
+    if (!dot_p || dot_p == filename_p || strcmp(&dot_p[1], extension) != 0) {
+        *extension_pp = p - 1;
         return false;
     }
     *extension_pp = dot_p;
@@ -39,7 +39,7 @@ bool checkExtension(char* file_name_p, char** extension_pp, char extension[])
     return true;
 }
 
-char* getFileName(char* src)
+char *getFilename(char *src)
 {
     char* forward_p = strrchr(src, '/');
     char* back_p = strrchr(src, '\\');
