@@ -8,7 +8,7 @@
 #include <string.h>
 #include <sys/param.h>
 #include "JackTokenizer.c"
-#include "../utilities.h"
+#include "../utilities.c"
 
 #define INDENT_WIDTH 2
 #define GLOBAL_SYMTAB_LEN 128
@@ -17,29 +17,29 @@
 #define VARIABLE_SYMTAB_TYPE_LEN 128
 #define VARIABLE_SYMTAB_KIND_LEN 7
 
-union process_data {
-    enum keyword keyword;
+typedef union _ProcessData {
+    Keyword keyword;
     char symbol;
     char *pointer; // for NULL
-};
+} ProcessData;
 
-enum process_optional {
+typedef enum _ProcessOptional {
     MAND, OPTNL
-};
+} ProcessOptional;
 
-struct variable_symtab_entry {
+typedef struct _VariableSymtabEntry {
     uint entry_index;
     char name[VARIABLE_SYMTAB_NAME_LEN]; // varName
     char type[VARIABLE_SYMTAB_TYPE_LEN]; // int | bool | char | className
     char kind[VARIABLE_SYMTAB_KIND_LEN]; // class-level: field | static, subroutine-level: arg | var
-};
+} VariableSymtabEntry;
 
-struct variable_symtab_entry *lookupSymtabEntry(char *name);
+VariableSymtabEntry *lookupSymtabEntry(char *name);
 void printSymtabs(bool global, bool sub);
-void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind);
+void addSymtabEntry(VariableSymtabEntry *symtab, char *name, char *type, char *kind);
 void setWriterOutputFile(FILE *fp, char *filename);
-void printXML(const struct token *token_p, const char *grammar_elem);
-bool process(enum token_type type, uint64_t data, enum process_optional optional);
+void printXML(const Token *token_p, const char *grammar_elem);
+bool process(TokenType type, uint64_t data, ProcessOptional optional);
 void compileClass();
 void compileClassVarDec();
 void compileSubroutine();
@@ -87,10 +87,10 @@ static char g_writer_name_buf[NAME_MAX];
 static uint g_indent_amount = 0;
 static bool g_print_xml = true;
 
-static struct variable_symtab_entry g_global_symtab[GLOBAL_SYMTAB_LEN];
-static struct variable_symtab_entry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
+static VariableSymtabEntry g_global_symtab[GLOBAL_SYMTAB_LEN];
+static VariableSymtabEntry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
 
-struct variable_symtab_entry *lookupSymtabEntry(char *name)
+VariableSymtabEntry *lookupSymtabEntry(char *name)
 {
     for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
         if (strcmp(name, g_subroutine_symtab[i].name) == 0) {
@@ -109,8 +109,8 @@ struct variable_symtab_entry *lookupSymtabEntry(char *name)
 
 void printSymtabs(bool global, bool sub)
 {
-    return;
-    struct variable_symtab_entry curr_entry;
+    // return;
+    VariableSymtabEntry curr_entry;
 
     if (global) {
         printf("global\n");
@@ -131,7 +131,7 @@ void printSymtabs(bool global, bool sub)
     }
 }
 
-void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type, char *kind)
+void addSymtabEntry(VariableSymtabEntry *symtab, char *name, char *type, char *kind)
 {
     uint entry_index = 0;
     uint i;
@@ -144,12 +144,12 @@ void addSymtabEntry(struct variable_symtab_entry *symtab, char *name, char *type
         }
     }
     symtab[i].entry_index = entry_index;
-    strncpy(symtab[i].name, name, MEMBER_SIZE(struct variable_symtab_entry, name));
-    strncpy(symtab[i].type, type, MEMBER_SIZE(struct variable_symtab_entry, type));
-    strncpy(symtab[i].kind, kind, MEMBER_SIZE(struct variable_symtab_entry, kind));
+    strncpy(symtab[i].name, name, MEMBER_SIZE(VariableSymtabEntry, name));
+    strncpy(symtab[i].type, type, MEMBER_SIZE(VariableSymtabEntry, type));
+    strncpy(symtab[i].kind, kind, MEMBER_SIZE(VariableSymtabEntry, kind));
 }
 
-struct variable_symtab_entry *searchSymtab(struct variable_symtab_entry *symtab, char *name)
+VariableSymtabEntry *searchSymtab(VariableSymtabEntry *symtab, char *name)
 {
     for (uint i = 0; symtab[i].name[0] != '\0'; ++i) {
         if (strcmp(symtab[i].name, name) == 0) {
@@ -171,7 +171,7 @@ void setWriterOutputFile(FILE *fp, char *file_path)
     strncpy(g_writer_name_buf, filename_p, filename_len);
 }
 
-void printXML(const struct token *token_p, const char *grammar_elem) {
+void printXML(const Token *token_p, const char *grammar_elem) {
     if (!g_print_xml) {
         return;
     }
@@ -207,15 +207,15 @@ void printXML(const struct token *token_p, const char *grammar_elem) {
         XML_PRINTF("s", grammar_elem, token_p->var_val);
         break;
     default:
-        fprintf(stderr, "ERR: Cannot print XML with token type: %d", curr_token->type);
+        fprintf(stderr, "ERR: Cannot print XML Token type: %d", curr_token->type);
         break;
     }
 }
 
-bool process(enum token_type type, uint64_t _data, enum process_optional optional)
+bool process(TokenType type, uint64_t _data, ProcessOptional optional)
 {
     bool retval = false;
-    union process_data data;
+    ProcessData data;
     data.pointer = _data;
 
     if (type == curr_token->type) {
@@ -233,7 +233,7 @@ bool process(enum token_type type, uint64_t _data, enum process_optional optiona
             retval = true;
             break;
         default:
-            COMPILE_ERR("token type");
+            COMPILE_ERR("Token type");
             break;
         }
     }
@@ -242,7 +242,7 @@ bool process(enum token_type type, uint64_t _data, enum process_optional optiona
         printXML(curr_token, g_token_types[type]);
         advance();
     } else if (optional == MAND) {
-        COMPILE_ERR("token");
+        COMPILE_ERR("Token");
     }
 
     return retval;
@@ -257,7 +257,7 @@ void compileClass()
     process(IDENTIFIER, NULL, MAND); // className
     process(SYMBOL, '{', MAND);
     while (curr_token->type == KEYWORD) {
-        enum keyword keyword = curr_token->fixed_val.keyword;
+        Keyword keyword = curr_token->fixed_val.keyword;
         if (keyword == STATIC || keyword == FIELD) {
             compileClassVarDec();
         } else {
@@ -265,7 +265,7 @@ void compileClass()
         }
     }
     while (curr_token->type == KEYWORD) {
-        enum keyword keyword = curr_token->fixed_val.keyword;
+        Keyword keyword = curr_token->fixed_val.keyword;
         if (keyword == CONSTRUCTOR || keyword == FUNCTION || keyword == METHOD) {
             compileSubroutine();
         } else {
@@ -509,7 +509,7 @@ void compileDo()
     NONTERM_PRINT_START("doStatement");
 
     process(KEYWORD, DO, MAND);
-    struct token *identifier_p;
+    Token *identifier_p;
     copyToken(&identifier_p, curr_token);
     process(IDENTIFIER, NULL, MAND);
     if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
@@ -562,8 +562,8 @@ void compileTerm()
 {
     NONTERM_PRINT_START("term");
 
-    const enum token_type type = curr_token->type;
-    const enum token_type keyword = curr_token->fixed_val.keyword;
+    const TokenType type = curr_token->type;
+    const TokenType keyword = curr_token->fixed_val.keyword;
     bool single_token_term = true;
 
     if (type == INT_CONST) {
@@ -586,7 +586,7 @@ void compileTerm()
         return;
     }
 
-    struct token *identifier_p; // subroutineCall
+    Token *identifier_p; // subroutineCall
     uint expression_count;
 
     copyToken(&identifier_p, curr_token);
@@ -616,6 +616,7 @@ void compileTerm()
         compileTerm();
         printf("%s\n", vm_op_p);
     } else { // should error??
+        COMPILE_ERR("term");
     }
 
     NONTERM_PRINT_END("term");
@@ -641,7 +642,7 @@ uint compileExpressionList() {
 
 static const char *convertOpToVM(char op, bool isUnary) {
     static const char *op_mappings[] = {
-        "add", "sub", "Math.multiply 2", "Math.divide 2",
+        "add", "sub", "call Math.multiply 2", "call Math.divide 2",
         "and", "or", "lt", "gt", "eq"
     };
 

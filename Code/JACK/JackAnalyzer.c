@@ -6,11 +6,11 @@
 #include <unistd.h>
 #include "JackTokenizer.c"
 #include "CompilationEngine.c"
-#include "../utilities.h"
+#include "../utilities.c"
 
 int main(int argc, char *argv[])
 {
-    err_t retval = 0;
+    Err retval = 0;
     if (argc != 2) {
         fprintf(stderr, "usage: ./JackAnalyzer (file.jack, dir)\n");
         retval = INVALID_ARG_CNT;
@@ -18,8 +18,8 @@ int main(int argc, char *argv[])
     }
 
     bool parse_dir = false;
-    char* extension_p;
-    char* path_p = getFilename(argv[1]);
+    char *extension_p;
+    char *path_p = getFilename(argv[1]);
     if (checkExtension(path_p, &extension_p, "jack") == false) {
         if (extension_p[0] == '.') {
             fprintf(stderr, "file path: %s has invalid extension: %s\n", path_p, extension_p);

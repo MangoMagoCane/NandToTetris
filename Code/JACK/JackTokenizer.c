@@ -7,35 +7,35 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
-#include "../utilities.h"
+#include "../utilities.c"
 
-enum token_type {
+typedef enum _TokenType {
     KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
-};
+} TokenType;
 
-enum keyword {
+typedef enum _Keyword {
     CLASS, METHOD, FUNCTION, CONSTRUCTOR, INT, BOOLEAN, CHAR, VOID, VAR,
     STATIC, FIELD, LET, DO, IF, ELSE, WHILE, RETURN, TRUE, FALSE, NIL, THIS
-};
+} Keyword;
 
-struct token {
-    enum token_type type;
+typedef struct _Token {
+    TokenType type;
     union {
-        enum keyword keyword;
+        Keyword keyword;
         char symbol;
         uint len;
     } fixed_val;
     char var_val[];
-};
+} Token;
 
-void printToken(struct token *token_p);
-void copyToken(struct token **token_pp, struct token *token_p);
+void printToken(Token *token_p);
+void copyToken(Token **token_pp, Token *token_p);
 void setTokenizerFile(FILE *fp);
-void pushback(struct token *token_p);
-struct token *advance();
-bool isOp(struct token *token_p, bool is_unary);
-bool isType(struct token *token_p);
-bool isIdentifier(struct token *token_p);
+void pushback(Token *token_p);
+Token *advance();
+bool isOp(Token *token_p, bool is_unary);
+bool isType(Token *token_p);
+bool isIdentifier(Token *token_p);
 
 #define freeToken(token_p) \
     free(token_p)
@@ -72,17 +72,17 @@ const char *g_token_types[] = {
 #define CURR_TOKEN_BUF_LEN 1024
 #define PUSHBACK_BUF_LEN 128
 
-static const uint KEYWORD_LEN = LENGTHOF(g_keywords);
-static const uint SYMBOLS_LEN = LENGTHOF(g_symbols);
+#define KEYWORD_LEN LENGTHOF(g_keywords)
+#define SYMBOLS_LEN LENGTHOF(g_symbols)
 
 static char g_line_buf[LINE_BUF_LEN] = { 0 };
 static FILE *g_curr_file_p = NULL;
 static char *g_line_buf_p = NULL;
 
-struct token *g_pushback_buf[PUSHBACK_BUF_LEN];
+Token *g_pushback_buf[PUSHBACK_BUF_LEN];
 static int g_pushback_i = 0;
 
-struct token *curr_token;
+Token *curr_token;
 char g_curr_token[CURR_TOKEN_BUF_LEN];
 
 bool g_tokens_left = true;
@@ -90,7 +90,7 @@ bool g_empty_line = true;
 bool g_in_multi_line = false;
 uint g_curr_line = 0;
 
-void printToken(struct token *token_p)
+void printToken(Token *token_p)
 {
     printf("%d ", token_p->type);
     switch (token_p->type) {
@@ -106,12 +106,12 @@ void printToken(struct token *token_p)
         printf("%s\n", token_p->var_val);
         break;
     default:
-        fprintf(stderr, "ERR: Invalid token type: %d\n", token_p->type);
+        fprintf(stderr, "ERR: Token type: %d\n", token_p->type);
         break;
     }
 }
 
-void copyToken(struct token **token_pp, struct token *token_p)
+void copyToken(Token **token_pp, Token *token_p)
 {
     size_t mem_size = sizeof (*token_p);
     switch (token_p->type) {
@@ -124,7 +124,7 @@ void copyToken(struct token **token_pp, struct token *token_p)
         mem_size += token_p->fixed_val.len * sizeof (token_p->var_val[0]);
         break;
     default:
-        fprintf(stderr, "ERR: Invalid token type: %d", token_p->type);
+        fprintf(stderr, "ERR: Token type: %d", token_p->type);
         *token_pp = NULL;
         return;
     }
@@ -143,29 +143,29 @@ void setTokenizerFile(FILE *fp)
     g_curr_line = 0;
 }
 
-void pushback(struct token *token_p) {
+void pushback(Token *token_p) {
     if (g_pushback_i >= PUSHBACK_BUF_LEN) {
-        fprintf(stderr, "ERR: Maximum token pushback limit reached %d\n", PUSHBACK_BUF_LEN);
+        fprintf(stderr, "ERR: Token pushback limit reached %d\n", PUSHBACK_BUF_LEN);
         return;
     }
 
-    struct token **tok_pp = &g_pushback_buf[g_pushback_i];
+    Token **tok_pp = &g_pushback_buf[g_pushback_i];
     if (token_p == NULL) {
         token_p = curr_token;
     }
     copyToken(&g_pushback_buf[g_pushback_i++], token_p);
 }
 
-struct token *advance_() {
-    struct token *retval = advance();
+Token *advance_() {
+    Token *retval = advance();
     printf("tok: %s\n", g_curr_token);
     return retval;
 }
 
-struct token *advance()
+Token *advance()
 {
     if (g_pushback_i > 0) {
-        struct token *tok_p = g_pushback_buf[--g_pushback_i];
+        Token *tok_p = g_pushback_buf[--g_pushback_i];
         copyToken(&curr_token, tok_p);
         free(tok_p);
         return curr_token;
@@ -185,7 +185,7 @@ load_line:
         char next, curr = g_line_buf[0];
         g_line_buf_p = g_line_buf;
         if (g_in_multi_line) {
-            char* strstr_p = strstr(g_line_buf, "*/");
+            char *strstr_p = strstr(g_line_buf, "*/");
             if (strstr_p == NULL) {
                 continue;
             }
@@ -285,7 +285,7 @@ load_line:
     if (i > 0) {
         g_curr_token[i] = '\0';
         g_line_buf_p--;
-        for (enum keyword i = 0; i < KEYWORD_LEN; ++i) {
+        for (Keyword i = 0; i < KEYWORD_LEN; ++i) {
             if (strcmp(g_curr_token, g_keywords[i]) == 0) {
                 curr_token->type = KEYWORD;
                 curr_token->fixed_val.keyword = i;
@@ -300,7 +300,7 @@ load_line:
     goto load_line;
 }
 
-bool isOp(struct token *token_p, bool is_unary)
+bool isOp(Token *token_p, bool is_unary)
 {
 
     if (token_p->type != SYMBOL) {
@@ -327,14 +327,14 @@ bool isOp(struct token *token_p, bool is_unary)
     return false;
 }
 
-bool isType(struct token *token_p)
+bool isType(Token *token_p)
 {
-    enum keyword keyword = token_p->fixed_val.keyword;
-    enum token_type type = token_p->type;
+    Keyword keyword = token_p->fixed_val.keyword;
+    TokenType type = token_p->type;
     return type == IDENTIFIER || (type == KEYWORD && (keyword == INT || keyword == CHAR || keyword == BOOLEAN));
 }
 
-bool isIdentifier(struct token *token_p)
+bool isIdentifier(Token *token_p)
 {
     return token_p->type == IDENTIFIER;
 }

@@ -7,13 +7,13 @@
 
 typedef unsigned int uint;
 
-typedef enum err_t {
+typedef enum Err {
     INVALID_ARG_CNT = 1,
     INVALID_FILE,
     INVALID_DIR,
     INVALID_FILE_EXTNSN,
     FAILED_MALLOC
-} err_t;
+} Err;
 
 #define LENGTHOF(arr) (sizeof (arr) / sizeof (arr[0]))
 #define MEMBER_SIZE(type, member) (sizeof (((type *) 0)->member))
