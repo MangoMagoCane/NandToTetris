@@ -29,7 +29,7 @@ typedef struct _Token {
 } Token;
 
 void printToken(Token *token_p);
-void copyToken(Token **token_pp, Token *token_p);
+Token *copyToken(Token **token_pp, Token *token_p);
 void setTokenizerFile(FILE *fp);
 void pushback(Token *token_p);
 Token *advance();
@@ -111,9 +111,11 @@ void printToken(Token *token_p)
     }
 }
 
-void copyToken(Token **token_pp, Token *token_p)
+Token *copyToken(Token **token_pp, Token *token_p)
 {
+    Token *new_token_p;
     size_t mem_size = sizeof (*token_p);
+
     switch (token_p->type) {
     case KEYWORD:
     case SYMBOL:
@@ -125,12 +127,18 @@ void copyToken(Token **token_pp, Token *token_p)
         break;
     default:
         fprintf(stderr, "ERR: Token type: %d", token_p->type);
-        *token_pp = NULL;
-        return;
+        if (token_pp != NULL) {
+            *token_pp = NULL;
+        }
+        return NULL;
     }
 
-    *token_pp = malloc(mem_size);
-    memcpy(*token_pp, token_p, mem_size);
+    if (token_pp == NULL) {
+        new_token_p = malloc(mem_size);
+    }
+    memcpy(new_token_p, token_p, mem_size);
+
+    return *(token_pp = &new_token_p);
 }
 
 void setTokenizerFile(FILE *fp)
@@ -149,25 +157,18 @@ void pushback(Token *token_p) {
         return;
     }
 
-    Token **tok_pp = &g_pushback_buf[g_pushback_i];
     if (token_p == NULL) {
         token_p = curr_token;
     }
-    copyToken(&g_pushback_buf[g_pushback_i++], token_p);
-}
-
-Token *advance_() {
-    Token *retval = advance();
-    printf("tok: %s\n", g_curr_token);
-    return retval;
+    g_pushback_buf[g_pushback_i++] = copyToken(NULL, token_p);
 }
 
 Token *advance()
 {
     if (g_pushback_i > 0) {
-        Token *tok_p = g_pushback_buf[--g_pushback_i];
-        copyToken(&curr_token, tok_p);
-        free(tok_p);
+        Token *token_p = g_pushback_buf[--g_pushback_i];
+        copyToken(&curr_token, token_p);
+        freeToken(token_p);
         return curr_token;
     }
     if (!g_tokens_left) {
@@ -339,6 +340,11 @@ bool isIdentifier(Token *token_p)
     return token_p->type == IDENTIFIER;
 }
 
+Token *advance_() {
+    Token *retval = advance();
+    printf("tok: %s\n", g_curr_token);
+    return retval;
+}
 // #define advance() advance_()
 
 #endif // NANDTOTETRIS_JACK_TOKENIZER
