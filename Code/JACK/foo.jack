@@ -1,6 +1,0 @@
-class Main {
-    constructor void main() {
-        // return (x + y) * 2;
-        return x + g(2, y - 5, -z);
-    }
-}

@@ -1,0 +1,10 @@
+class Main {
+    static int foo, bar;
+    field int baz;
+    method void main() {
+        let a = x * (1 + rate);
+        //let a = (x < 7) | (y = 8);
+        //return (x + y) / 2;
+        //return x + g(2, y - 5, -z);
+    }
+}
