@@ -92,7 +92,7 @@ uint g_curr_line = 0;
 
 void printToken(Token *token_p)
 {
-    printf("%d ", token_p->type);
+    printf("%s: ", g_token_types[token_p->type]);
     switch (token_p->type) {
     case KEYWORD:
         printf("%s\n", g_keywords[token_p->fixed_val.keyword]);

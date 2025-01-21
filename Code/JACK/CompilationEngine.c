@@ -8,14 +8,10 @@
 #include <string.h>
 #include <sys/param.h>
 #include "JackTokenizer.c"
+#include "SymbolTable.c"
 #include "../utilities.c"
 
 #define INDENT_WIDTH 2
-#define GLOBAL_SYMTAB_LEN 128
-#define SUBROUTINE_SYMTAB_LEN 128
-#define VARIABLE_SYMTAB_NAME_LEN 128
-#define VARIABLE_SYMTAB_TYPE_LEN 128
-#define VARIABLE_SYMTAB_KIND_LEN 7
 
 typedef union _ProcessData {
     Keyword keyword;
@@ -27,16 +23,6 @@ typedef enum _ProcessOptional {
     MAND, OPTNL
 } ProcessOptional;
 
-typedef struct _VariableSymtabEntry {
-    uint entry_index;
-    char name[VARIABLE_SYMTAB_NAME_LEN]; // varName
-    char type[VARIABLE_SYMTAB_TYPE_LEN]; // int | bool | char | className
-    char kind[VARIABLE_SYMTAB_KIND_LEN]; // class-level: field | static, subroutine-level: arg | var
-} VariableSymtabEntry;
-
-VariableSymtabEntry *lookupSymtabEntry(char *name);
-void printSymtabs(bool global, bool sub);
-void addSymtabEntry(VariableSymtabEntry *symtab, char *name, char *type, char *kind);
 void setWriterOutputFile(FILE *fp, char *filename);
 void printXML(const Token *token_p, const char *grammar_elem);
 bool process(TokenType type, uint64_t data, ProcessOptional optional);
@@ -78,87 +64,22 @@ static const char *convertOpToVM(char op, bool isUnary);
     exit(1); \
 }
 
-#define RESET_SYMTAB(symtab) { \
-    memset(symtab, 0, sizeof (symtab)); \
+// #define ADD_SYMTAB_ENTRY_(symtab, name, type, kind) { \
+    if (!addSymtabEntry(symtab, name, type, kind)) { \
+        COMPILE_ERR("reused variable name"); \
+    } \
+// }
+
+#define addSymtabEntry(symtab, name, type, kind) { \
+    if (!addSymtabEntry(symtab, name, type, kind)) { \
+        COMPILE_ERR("reused variable name"); \
+    } \
 }
 
 static FILE *g_writer_fp;
 static char g_writer_name_buf[NAME_MAX];
 static uint g_indent_amount = 0;
 static bool g_print_xml = true;
-
-static VariableSymtabEntry g_global_symtab[GLOBAL_SYMTAB_LEN];
-static VariableSymtabEntry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
-
-VariableSymtabEntry *lookupSymtabEntry(char *name)
-{
-    for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
-        if (strcmp(name, g_subroutine_symtab[i].name) == 0) {
-            return &g_subroutine_symtab[i];
-        }
-    }
-
-    for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
-        if (strcmp(name, g_global_symtab[i].name) == 0) {
-            return &g_global_symtab[i];
-        }
-    }
-
-    return NULL;
-}
-
-void printSymtabs(bool global, bool sub)
-{
-    // return;
-    VariableSymtabEntry curr_entry;
-
-    if (global) {
-        printf("global\n");
-        for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
-            curr_entry = g_global_symtab[i];
-            printf("| %-7s | %-10s | %-3d | %s\n",
-                curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
-        }
-    }
-
-    if (sub) {
-        printf("subroutine\n");
-        for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
-            curr_entry = g_subroutine_symtab[i];
-            printf("| %-7s | %-10s | %-3d | %s\n",
-                curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
-        }
-    }
-}
-
-void addSymtabEntry(VariableSymtabEntry *symtab, char *name, char *type, char *kind)
-{
-    uint entry_index = 0;
-    uint i;
-    for (i = 0; symtab[i].name[0] != '\0'; ++i) {
-        if (strcmp(symtab[i].name, name) == 0) {
-            COMPILE_ERR("reused variable name");
-        }
-        if (strcmp(symtab[i].kind, kind) == 0) {
-            entry_index++;
-        }
-    }
-    symtab[i].entry_index = entry_index;
-    strncpy(symtab[i].name, name, MEMBER_SIZE(VariableSymtabEntry, name));
-    strncpy(symtab[i].type, type, MEMBER_SIZE(VariableSymtabEntry, type));
-    strncpy(symtab[i].kind, kind, MEMBER_SIZE(VariableSymtabEntry, kind));
-}
-
-VariableSymtabEntry *searchSymtab(VariableSymtabEntry *symtab, char *name)
-{
-    for (uint i = 0; symtab[i].name[0] != '\0'; ++i) {
-        if (strcmp(symtab[i].name, name) == 0) {
-            return &symtab[i];
-        }
-    }
-
-    return NULL;
-}
 
 void setWriterOutputFile(FILE *fp, char *file_path)
 {
@@ -251,7 +172,7 @@ bool process(TokenType type, uint64_t _data, ProcessOptional optional)
 void compileClass()
 {
     NONTERM_PRINT_START("class");
-    RESET_SYMTAB(g_global_symtab);
+    resetSymtab(g_global_symtab);
 
     process(KEYWORD, CLASS, MAND);
     process(IDENTIFIER, NULL, MAND); // className
@@ -314,7 +235,7 @@ void compileClassVarDec()
 void compileSubroutine()
 {
     NONTERM_PRINT_START("subroutineDec");
-    RESET_SYMTAB(g_subroutine_symtab);
+    resetSymtab(g_subroutine_symtab);
 
     if (process(KEYWORD, CONSTRUCTOR, OPTNL)) {
     } else if (process(KEYWORD, FUNCTION, OPTNL)) {
@@ -660,5 +581,6 @@ static const char *convertOpToVM(char op, bool isUnary) {
         }
     }
 }
+
 
 #endif // NANDTOTETRIS_COM
