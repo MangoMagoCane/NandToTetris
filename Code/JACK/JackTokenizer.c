@@ -7,30 +7,12 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
+#include "JackTypes.c"
 #include "../utilities.c"
-
-typedef enum _TokenType {
-    KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
-} TokenType;
-
-typedef enum _Keyword {
-    CLASS, METHOD, FUNCTION, CONSTRUCTOR, INT, BOOLEAN, CHAR, VOID, VAR,
-    STATIC, FIELD, LET, DO, IF, ELSE, WHILE, RETURN, TRUE, FALSE, NIL, THIS
-} Keyword;
-
-typedef struct _Token {
-    TokenType type;
-    union {
-        Keyword keyword;
-        char symbol;
-        uint len;
-    } fixed_val;
-    char var_val[];
-} Token;
 
 void printToken(Token *token_p);
 Token *copyToken(Token **token_pp, Token *token_p);
-void setTokenizerFile(FILE *fp);
+void setTokenizerInputFile(FILE *fp);
 void pushback(Token *token_p);
 Token *advance();
 bool isOp(Token *token_p, bool is_unary);
@@ -141,7 +123,7 @@ Token *copyToken(Token **token_pp, Token *token_p)
     return *(token_pp = &new_token_p);
 }
 
-void setTokenizerFile(FILE *fp)
+void setTokenizerInputFile(FILE *fp)
 {
     g_curr_file_p = fp;
     g_line_buf_p = NULL;
