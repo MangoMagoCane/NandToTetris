@@ -68,19 +68,19 @@ typedef enum segment_indices_t {
 #define MAX_STATIC_COUNT 240
 #define WRITER_NAME_BUFSIZE 128
 
-static FILE* writer_fp;
+static FILE *writer_fp;
 static char curr_file_name[WRITER_NAME_BUFSIZE];
 static char curr_func_name[WRITER_NAME_BUFSIZE] = "__global__";
 static bool is_directory = false;
 static uint curr_call_i;
 
-void setWriterOutputFile(FILE* fp, bool is_incoming_dir)
+void setWriterOutputFile(FILE *fp, bool is_incoming_dir)
 {
     writer_fp = fp;
     is_directory = is_incoming_dir;
 }
 
-void setWriterFileName(char* file_name_p)
+void setWriterFileName(char *file_name_p)
 {
     strncpy(curr_file_name, file_name_p, sizeof (curr_file_name));
     fprintf(writer_fp, "//   --%s START--\n", file_name_p);
@@ -134,7 +134,7 @@ int writeArithLogical(char* command_p)
     return -1;
 }
 
-int writePushPop(char* command_p, char* segment_p, uint index_val)
+int writePushPop(char *command_p, char *segment_p, uint index_val)
 {
     static uint static_count = 0;
     static char* lookup_pointer[2] = { "THIS", "THAT" };
@@ -163,16 +163,24 @@ int writePushPop(char* command_p, char* segment_p, uint index_val)
         }
     }
     if (strcmp(segment_p, "constant") == 0) {
-        if (seg_val == POP) return -1;
+        if (seg_val == POP) {
+            return -1;
+        }
         fprintf(writer_fp, PUSH_CONSTANT, index_val);
     } else if (strcmp(segment_p, "pointer") == 0) {
-        if (index_val > 1) return -1;
+        if (index_val > 1) {
+            return -1;
+        }
         fprintf(writer_fp, lookup_seg[POINTER][seg_val], lookup_pointer[index_val]);
     } else if (strcmp(segment_p, "temp") == 0) {
-        if (index_val > 7) return -1;
+        if (index_val > 7) {
+            return -1;
+        }
         fprintf(writer_fp, lookup_seg[TEMP][seg_val], index_val + 5);
     } else if (strcmp(segment_p, "static") == 0) {
-        if (static_count > MAX_STATIC_COUNT) return -1;
+        if (static_count > MAX_STATIC_COUNT) {
+            return -1;
+        }
         fprintf(writer_fp, lookup_seg[STATIC][seg_val], curr_file_name, index_val, curr_file_name, index_val);
         static_count++;
     } else {
@@ -182,16 +190,16 @@ int writePushPop(char* command_p, char* segment_p, uint index_val)
     return 0;
 }
 
-int writeCall(char* func_name_p, uint arg_count)
+int writeCall(char *func_name_p, uint arg_count)
 {
     fprintf(writer_fp, "// call %s %d\n", func_name_p, arg_count);
-    fprintf(writer_fp, CALL_FUNC, curr_func_name, curr_call_i, 5+arg_count, func_name_p, curr_func_name, curr_call_i);
+    fprintf(writer_fp, CALL_FUNC, curr_func_name, curr_call_i, arg_count + 5, func_name_p, curr_func_name, curr_call_i);
     curr_call_i++;
 
     return 0;
 }
 
-int writeFunction(char* func_name_p, uint var_count)
+int writeFunction(char *func_name_p, uint var_count)
 {
     setWriterFuncName(func_name_p);
     fprintf(writer_fp, "(%s) // function %s %d\n", curr_func_name, func_name_p, var_count);
@@ -215,7 +223,7 @@ int writeReturn()
     return 0;
 }
 
-int writeBranching(char* command_p, char* label_p)
+int writeBranching(char *command_p, char *label_p)
 {
     fprintf(writer_fp, "// %s %s\n", command_p, label_p);
     if (strcmp(command_p, "label") == 0) {
