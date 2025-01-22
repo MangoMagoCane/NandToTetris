@@ -1,5 +1,5 @@
-#ifndef NANDTOTETRIS_COMPILATION_ENGINE
-#define NANDTOTETRIS_COMPILATION_ENGINE
+#ifndef JACK_COMPILATION_ENGINE
+#define JACK_COMPILATION_ENGINE
 
 #include <stdio.h>
 #include <stdint.h>
@@ -9,9 +9,8 @@
 #include <sys/param.h>
 #include "JackTokenizer.c"
 #include "SymbolTable.c"
+#include "VMWriter.c"
 #include "../utilities.c"
-
-#define INDENT_WIDTH 2
 
 typedef union _ProcessData {
     Keyword keyword;
@@ -23,9 +22,7 @@ typedef enum _ProcessOptional {
     MAND, OPTNL
 } ProcessOptional;
 
-void setWriterOutputFile(FILE *fp, char *filename);
-void printXML(const Token *token_p, const char *grammar_elem);
-bool process(TokenType type, uint64_t data, ProcessOptional optional);
+bool process(TokenType type, uint64_t _data, ProcessOptional optional);
 void compileClass();
 void compileClassVarDec();
 void compileSubroutine();
@@ -40,98 +37,17 @@ void compileDo();
 void compileReturn();
 void compileExpression();
 void compileTerm();
-void compileSubroutineCall();
 uint compileExpressionList();
 static const char *convertOpToVM(char op, bool isUnary);
 
-#define NONTERM_PRINT_START(string) { \
-    fprintf(g_writer_fp, "%*s<" string ">\n", g_indent_amount, ""); \
-    g_indent_amount += INDENT_WIDTH; \
-}
-
-#define NONTERM_PRINT_END(string) { \
-    g_indent_amount -= INDENT_WIDTH; \
-    fprintf(g_writer_fp, "%*s</" string ">\n", g_indent_amount, ""); \
-}
-
-#define XML_PRINTF(format_type, grammar_elem, value) { \
-    fprintf(g_writer_fp, "%*s<%s> %" format_type " </%s>\n", g_indent_amount, " ", grammar_elem, value, grammar_elem); \
-}
-
-#define COMPILE_ERR(err_name) { \
-    fprintf(stderr, "%s\nERR: Invalid " err_name " on line: %d\n", g_writer_name_buf, g_curr_line); \
-    printToken(curr_token); \
-    exit(1); \
-}
-
-// #define ADD_SYMTAB_ENTRY_(symtab, name, type, kind) { \
-    if (!addSymtabEntry(symtab, name, type, kind)) { \
-        COMPILE_ERR("reused variable name"); \
-    } \
-// }
-
-#define addSymtabEntry(symtab, name, type, kind) { \
-    if (!addSymtabEntry(symtab, name, type, kind)) { \
-        COMPILE_ERR("reused variable name"); \
-    } \
-}
-
-static FILE *g_writer_fp;
-static char g_writer_name_buf[NAME_MAX];
-static uint g_indent_amount = 0;
-static bool g_print_xml = true;
-
-void setWriterOutputFile(FILE *fp, char *file_path)
-{
-    g_writer_fp = fp;
-    g_indent_amount = 0;
-    char *extension_p;
-    char *filename_p = getFilename(file_path);
-    checkExtension(filename_p, &extension_p, "xml");
-    size_t filename_len = MIN(extension_p - filename_p, sizeof (g_writer_name_buf));
-    strncpy(g_writer_name_buf, filename_p, filename_len);
-}
-
-void printXML(const Token *token_p, const char *grammar_elem) {
-    if (!g_print_xml) {
-        return;
+bool addSymtabEntry_(VariableSymtabEntry *symtab, char *name, char *type, char *kind) {
+    if (!addSymtabEntry(symtab, name, type, kind)) {
+        compileErr("reused variable name");
     }
 
-    switch (token_p->type) {
-    case KEYWORD:
-        XML_PRINTF("s", grammar_elem, g_keywords[token_p->fixed_val.keyword]);
-        break;
-    case SYMBOL: ; // HERE
-        char symbol = token_p->fixed_val.symbol;
-        switch (symbol) {
-        case '<':
-            XML_PRINTF("s", grammar_elem, "&lt;");
-            break;
-        case '>':
-            XML_PRINTF("s", grammar_elem, "&gt;");
-            break;
-        case '"':
-            XML_PRINTF("s", grammar_elem, "&quot;");
-            break;
-        case '&':
-            XML_PRINTF("s", grammar_elem, "&amp;");
-            break;
-        default:
-            XML_PRINTF("c", grammar_elem, symbol);
-            break;
-        }
-        break;
-    case IDENTIFIER:
-    case INT_CONST:
-        // printf("%s\n", token_p->var_val);
-    case STRING_CONST:
-        XML_PRINTF("s", grammar_elem, token_p->var_val);
-        break;
-    default:
-        fprintf(stderr, "ERR: Cannot print XML Token type: %d", curr_token->type);
-        break;
-    }
+    return true;
 }
+#define addSymtabEntry_(symtab, name, type, kind) addSymtabEntry(symtab, name, type, kind)
 
 bool process(TokenType type, uint64_t _data, ProcessOptional optional)
 {
@@ -154,16 +70,16 @@ bool process(TokenType type, uint64_t _data, ProcessOptional optional)
             retval = true;
             break;
         default:
-            COMPILE_ERR("Token type");
+            compileErr("Token type");
             break;
         }
     }
 
     if (retval) {
-        printXML(curr_token, g_token_types[type]);
+        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
     } else if (optional == MAND) {
-        COMPILE_ERR("Token");
+        compileErr("Token");
     }
 
     return retval;
@@ -171,7 +87,7 @@ bool process(TokenType type, uint64_t _data, ProcessOptional optional)
 
 void compileClass()
 {
-    NONTERM_PRINT_START("class");
+    printNontermStartXML("class");
     resetSymtab(g_global_symtab);
 
     process(KEYWORD, CLASS, MAND);
@@ -196,45 +112,42 @@ void compileClass()
     process(SYMBOL, '}', MAND);
 
     printSymtabs(true, false);
-    NONTERM_PRINT_END("class");
+    printNontermEndXML("class");
 }
 
 void compileClassVarDec()
 {
-    NONTERM_PRINT_START("classVarDec");
+    printNontermStartXML("classVarDec");
     char type_buf[CURR_TOKEN_BUF_LEN];
     char kind_buf[CURR_TOKEN_BUF_LEN];
 
     strncpy(kind_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (kind_buf));
     if (process(KEYWORD, STATIC, OPTNL) || process(KEYWORD, FIELD, MAND)) {}
     if (!isType(curr_token)) {
-        COMPILE_ERR("type");
+        compileErr("type");
     }
     if (curr_token->type == IDENTIFIER) {
         strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
     } else {
         strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
     }
-    printXML(curr_token, g_token_types[curr_token->type]);
+    printXML(curr_token, TOKEN_TYPE_STR(curr_token));
     advance();
 
-    // printf("-- %s\n", curr_token->var_val);
     addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, kind_buf);
     process(IDENTIFIER, NULL, MAND); // varName
- 
     while (process(SYMBOL, ',', OPTNL)) {
-        // printf("-- %s\n", curr_token->var_val);
         addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, kind_buf);
         process(IDENTIFIER, NULL, MAND); // varName
     }
     process(SYMBOL, ';', MAND);
 
-    NONTERM_PRINT_END("classVarDec");
+    printNontermEndXML("classVarDec");
 }
 
 void compileSubroutine()
 {
-    NONTERM_PRINT_START("subroutineDec");
+    printNontermStartXML("subroutineDec");
     resetSymtab(g_subroutine_symtab);
 
     if (process(KEYWORD, CONSTRUCTOR, OPTNL)) {
@@ -244,7 +157,7 @@ void compileSubroutine()
     }
 
     if (isType(curr_token)) {
-        printXML(curr_token, g_token_types[curr_token->type]);
+        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
     } else {
         process(KEYWORD, VOID, MAND);
@@ -259,12 +172,12 @@ void compileSubroutine()
 
     printSymtabs(false, true);
 
-    NONTERM_PRINT_END("subroutineDec");
+    printNontermEndXML("subroutineDec");
 }
 
 void compileParameterList()
 {
-    NONTERM_PRINT_START("parameterList");
+    printNontermStartXML("parameterList");
     char type_buf[CURR_TOKEN_BUF_LEN];
 
     if (isType(curr_token)) {
@@ -280,7 +193,7 @@ void compileParameterList()
         process(IDENTIFIER, NULL, MAND); // varName
         while (process(SYMBOL, ',', OPTNL)) {
             if (!isType(curr_token)) {
-                COMPILE_ERR("type");
+                compileErr("type");
             }
             printXML(curr_token, TOKEN_TYPE_STR(curr_token));
             if (curr_token->type == IDENTIFIER) {
@@ -295,12 +208,12 @@ void compileParameterList()
         }
     }
 
-    NONTERM_PRINT_END("parameterList");
+    printNontermEndXML("parameterList");
 }
 
 void compileSubroutineBody()
 {
-    NONTERM_PRINT_START("subroutineBody");
+    printNontermStartXML("subroutineBody");
 
     process(SYMBOL, '{', MAND);
     while (curr_token->type == KEYWORD && curr_token->fixed_val.keyword == VAR) {
@@ -309,41 +222,38 @@ void compileSubroutineBody()
     compileStatements();
     process(SYMBOL, '}', MAND);
 
-    NONTERM_PRINT_END("subroutineBody");
+    printNontermEndXML("subroutineBody");
 }
 
 void compileVarDec()
 {
-    NONTERM_PRINT_START("varDec");
+    printNontermStartXML("varDec");
     char type_buf[CURR_TOKEN_BUF_LEN];
 
     process(KEYWORD, VAR, MAND);
     if (!isType(curr_token)) {
-        COMPILE_ERR("type");
+        compileErr("type");
     }
     if (curr_token->type == IDENTIFIER) {
         strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
     } else {
         strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
     }
-    printXML(curr_token, g_token_types[curr_token->type]);
+    printXML(curr_token, TOKEN_TYPE_STR(curr_token));
     advance();
 
-    addSymtabEntry(g_subroutine_symtab, curr_token->var_val, type_buf, "var");
-    process(IDENTIFIER, NULL, MAND); // varName
-
-    while (process(SYMBOL, ',', OPTNL)) {
+    do {
         addSymtabEntry(g_subroutine_symtab, curr_token->var_val, type_buf, "var");
         process(IDENTIFIER, NULL, MAND); // varName
-    }
+    } while (process(SYMBOL, ',', OPTNL));
     process(SYMBOL, ';', MAND);
 
-    NONTERM_PRINT_END("varDec");
+    printNontermEndXML("varDec");
 }
 
 void compileStatements()
 {
-    NONTERM_PRINT_START("statements");
+    printNontermStartXML("statements");
 
     while (curr_token->type == KEYWORD) {
         switch (curr_token->fixed_val.keyword) {
@@ -366,18 +276,18 @@ void compileStatements()
         break;
     }
 
-    NONTERM_PRINT_END("statements");
+    printNontermEndXML("statements");
 }
 
 void compileLet()
 {
-    NONTERM_PRINT_START("letStatement");
+    printNontermStartXML("letStatement");
 
     process(KEYWORD, LET, MAND);
     if (curr_token->type != IDENTIFIER) {
-        COMPILE_ERR("variable name");
+        compileErr("variable name");
     }
-    printXML(curr_token, g_token_types[curr_token->type]);
+    printXML(curr_token, TOKEN_TYPE_STR(curr_token));
     advance();
     if (process(SYMBOL, '[', OPTNL)) {
         compileExpression();
@@ -387,12 +297,12 @@ void compileLet()
     compileExpression();
     process(SYMBOL, ';', MAND);
 
-    NONTERM_PRINT_END("letStatement");
+    printNontermEndXML("letStatement");
 }
 
 void compileIf()
 {
-    NONTERM_PRINT_START("ifStatement");
+    printNontermStartXML("ifStatement");
 
     process(KEYWORD, IF, MAND);
     process(SYMBOL, '(', MAND);
@@ -407,12 +317,12 @@ void compileIf()
         process(SYMBOL, '}', MAND);
     }
 
-    NONTERM_PRINT_END("ifStatement");
+    printNontermEndXML("ifStatement");
 }
 
 void compileWhile()
 {
-    NONTERM_PRINT_START("whileStatement");
+    printNontermStartXML("whileStatement");
 
     process(KEYWORD, WHILE, MAND);
     process(SYMBOL, '(', MAND);
@@ -422,16 +332,15 @@ void compileWhile()
     compileStatements();
     process(SYMBOL, '}', MAND);
 
-    NONTERM_PRINT_END("whileStatement");
+    printNontermEndXML("whileStatement");
 }
 
 void compileDo()
 {
-    NONTERM_PRINT_START("doStatement");
+    printNontermStartXML("doStatement");
 
     process(KEYWORD, DO, MAND);
-    Token *identifier_p;
-    copyToken(&identifier_p, curr_token);
+    Token *identifier_p = copyToken(NULL, curr_token);
     process(IDENTIFIER, NULL, MAND);
     if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
         compileExpressionList();
@@ -442,17 +351,17 @@ void compileDo()
         compileExpressionList();
         process(SYMBOL, ')', MAND);
     } else {
-        COMPILE_ERR("symbol");
+        compileErr("symbol");
     }
     process(SYMBOL, ';', MAND);
-    freeToken(identifier_p);
 
-    NONTERM_PRINT_END("doStatement");
+    freeToken(identifier_p);
+    printNontermEndXML("doStatement");
 }
 
 void compileReturn()
 {
-    NONTERM_PRINT_START("returnStatement");
+    printNontermStartXML("returnStatement");
 
     process(KEYWORD, RETURN, MAND);
     if (!process(SYMBOL, ';', OPTNL)) {
@@ -460,36 +369,43 @@ void compileReturn()
         process(SYMBOL, ';', MAND);
     }
 
-    NONTERM_PRINT_END("returnStatement");
+    printNontermEndXML("returnStatement");
 }
 
 void compileExpression()
 {
-    NONTERM_PRINT_START("expression");
+    printNontermStartXML("expression");
 
     compileTerm();
     while (isOp(curr_token, false)) {
         const char *vm_op_p = convertOpToVM(curr_token->fixed_val.symbol, false);
-        printXML(curr_token, g_token_types[curr_token->type]);
+        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
         compileTerm();
         printf("%s\n", vm_op_p);
     }
 
-    NONTERM_PRINT_END("expression");
+    printNontermEndXML("expression");
 }
 
 void compileTerm()
 {
-    NONTERM_PRINT_START("term");
+    printNontermStartXML("term");
 
     const TokenType type = curr_token->type;
     const TokenType keyword = curr_token->fixed_val.keyword;
     bool single_token_term = true;
 
     if (type == INT_CONST) {
-        printf("push %s\n", curr_token->var_val);
+        printf("push constant %s\n", curr_token->var_val);
     } else if (type == STRING_CONST) { // NOT IMPLEMENTED
+        size_t tokstr_len = strlen(curr_token->var_val);
+        printf("push constant %d\n", tokstr_len);
+        printf("call String.new 1\n");
+        for (uint i = 0; i < tokstr_len; ++i) {
+            printf("push constant %d\n", curr_token->var_val[i]);
+            printf("call String.appendChar 1\n");
+        }
     } else if (keyword == TRUE) {
         printf("push constant 1\n");
         printf("push neg\n");
@@ -501,30 +417,39 @@ void compileTerm()
     }
 
     if (single_token_term) {
-        printXML(curr_token, g_token_types[type]);
+        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
-        NONTERM_PRINT_END("term");
+        printNontermEndXML("term");
         return;
     }
 
-    Token *identifier_p; // subroutineCall
-    uint expression_count;
+    Token *identifier_p = copyToken(NULL, curr_token);
 
-    copyToken(&identifier_p, curr_token);
-    if (process(IDENTIFIER, NULL, OPTNL)) { // varName
-        if (process(SYMBOL, '[', OPTNL)) {
+    if (process(IDENTIFIER, NULL, OPTNL)) {
+        if (process(SYMBOL, '[', OPTNL)) { // IDENTIFIER = varName
             compileExpression();
             process(SYMBOL, ']', MAND);
         } else if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
-            expression_count = compileExpressionList();
+            uint expression_count = compileExpressionList();
             printf("call %s %d\n", identifier_p->var_val, expression_count);
             process(SYMBOL, ')', MAND);
-        } else if (process(SYMBOL, '.', OPTNL)) {  // IDENTIFIER = className | varName
+        } else if (process(SYMBOL, '.', OPTNL)) { // IDENTIFIER = className | varName
+            Token *subroutine_name_p = copyToken(NULL, curr_token);
+            VariableSymtabEntry *entry_p = lookupSymtabEntry(identifier_p->var_val);
+            if (entry_p != NULL) {
+                printf("push %s %s\n", identifier_p->var_val);
+            }
             process(IDENTIFIER, NULL, MAND);
             process(SYMBOL, '(', MAND);
-            expression_count = compileExpressionList();
+            uint expression_count = compileExpressionList();
+            if (entry_p != NULL) {
+                printf("call %s.%s %d\n", entry_p->type, subroutine_name_p->var_val, ++expression_count);
+            } else {
+                printf("call %s.%s %d\n", identifier_p->var_val, subroutine_name_p->var_val, expression_count);
+            }
+            freeToken(subroutine_name_p);
             process(SYMBOL, ')', MAND);
-        } else {
+        } else { // IDENTIFIER = varName
             printf("push %s\n", identifier_p->var_val);
         }
     } else if (process(SYMBOL, '(', OPTNL)) {
@@ -532,20 +457,21 @@ void compileTerm()
         process(SYMBOL, ')', MAND);
     } else if (isOp(curr_token, true)) {
         const char *vm_op_p = convertOpToVM(curr_token->fixed_val.symbol, true);
-        printXML(curr_token, g_token_types[curr_token->type]);
+        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
         compileTerm();
         printf("%s\n", vm_op_p);
     } else { // should error??
-        COMPILE_ERR("term");
+        compileErr("term");
     }
 
-    NONTERM_PRINT_END("term");
+    freeToken(identifier_p);
+    printNontermEndXML("term");
 }
 
 uint compileExpressionList() {
 
-    NONTERM_PRINT_START("expressionList");
+    printNontermStartXML("expressionList");
 
     uint expression_count = 0;
     if (curr_token->type != SYMBOL || curr_token->fixed_val.symbol != ')') {
@@ -557,7 +483,7 @@ uint compileExpressionList() {
         }
     }
 
-    NONTERM_PRINT_END("expressionList");
+    printNontermEndXML("expressionList");
     return expression_count;
 }
 
@@ -583,4 +509,4 @@ static const char *convertOpToVM(char op, bool isUnary) {
 }
 
 
-#endif // NANDTOTETRIS_COM
+#endif // JACK_COMPILATION_ENGINE

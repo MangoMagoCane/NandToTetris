@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "JackTokenizer.c"
 #include "CompilationEngine.c"
+#include "JackTokenizer.c"
+#include "VMWriter.c"
 #include "../utilities.c"
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
     Err retval = 0;
     if (argc != 2) {
@@ -19,10 +20,10 @@ int main(int argc, char *argv[])
 
     bool parse_dir = false;
     char *extension_p;
-    char *path_p = getFilename(argv[1]);
-    if (checkExtension(path_p, &extension_p, "jack") == false) {
+    char *filename_p = getFilename(argv[1]);
+    if (checkExtension(filename_p, &extension_p, "jack") == false) {
         if (extension_p[0] == '.') {
-            fprintf(stderr, "file path: %s has invalid extension: %s\n", path_p, extension_p);
+            fprintf(stderr, "file path: %s has invalid extension: %s\n", filename_p, extension_p);
             retval = INVALID_FILE_EXTNSN;
             goto exit;
         }
@@ -31,26 +32,18 @@ int main(int argc, char *argv[])
 
     FILE *f_input;
     DIR *dir_input;
+    curr_token = malloc(sizeof (*curr_token) + (sizeof (curr_token->var_val[CURR_TOKEN_BUF_LEN])));
+
     if (parse_dir) {
+        struct dirent *dirent_p;
+
         chdir(argv[1]);
         if ((dir_input = opendir(".")) == NULL) {
             fprintf(stderr, "cannot open: %s\n", argv[1]);
             retval = INVALID_DIR;
             goto exit;
         }
-    } else {
-        if ((f_input = fopen(argv[1], "r")) == NULL) {
-            fprintf(stderr, "cannot open: %s\n", argv[1]);
-            retval = INVALID_FILE;
-            goto exit;
-        }
-        extension_p[0] = '\0';
-    }
 
-    curr_token = malloc(sizeof (*curr_token) + (sizeof (curr_token->var_val[CURR_TOKEN_BUF_LEN])));
-
-    if (parse_dir) {
-        struct dirent *dirent_p;
         while ((dirent_p = readdir(dir_input)) != NULL) {
             char d_name_buf[NAME_MAX];
             char output_name[PATH_MAX];
@@ -64,30 +57,30 @@ int main(int argc, char *argv[])
                 break;
             }
             extension_p[0] = '\0';
-            sprintf(output_name, "%s%s", d_name_buf, ".xml");
-            FILE *f_output = fopen(output_name, "w");
-            if (f_output == NULL) {
-                fprintf(stderr, "cannot open output file: %s\n", argv[1]);
+
+            setTokenizerInputFile(f_input);
+            if (!setWriterOutputFiles(d_name_buf)) {
+                fprintf(stderr, "cannot open output files for file: %s\n", argv[1]);
                 retval = INVALID_FILE;
                 goto close_input;
             }
-            setTokenizerFile(f_input);
-            setWriterOutputFile(f_output, d_name_buf);
             advance();
             compileClass();
-            fclose(f_output);
         }
     } else {
-        char output_name[PATH_MAX];
-        sprintf(output_name, "%s%s", argv[1], ".xml");
-        FILE *f_output = fopen(output_name, "w");
-        if (f_output == NULL) {
-            fprintf(stderr, "cannot open output file: %s\n", argv[1]);
+        if ((f_input = fopen(argv[1], "r")) == NULL) {
+            fprintf(stderr, "cannot open: %s\n", argv[1]);
+            retval = INVALID_FILE;
+            goto exit;
+        }
+        extension_p[0] = '\0';
+
+        setTokenizerInputFile(f_input);
+        if (!setWriterOutputFiles(argv[1])) {
+            fprintf(stderr, "cannot open output files for file: %s\n", argv[1]);
             retval = INVALID_FILE;
             goto close_input;
         }
-        setTokenizerFile(f_input);
-        setWriterOutputFile(f_output, output_name);
         advance();
         compileClass();
     }
