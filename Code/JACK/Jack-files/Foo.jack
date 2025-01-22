@@ -1,0 +1,12 @@
+class Foo {
+    static int foo, bar;
+    field int baz;
+
+    method void Bar(int a, int b) {
+        var String v1, v2;
+        //let a = x * (1 + rate);
+        //let a = (x < 7) | (y = 8);
+        //return (x + y) / 2;
+        return x + g(2, y - 5, -z);
+    }
+}
