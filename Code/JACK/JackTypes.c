@@ -23,6 +23,7 @@ typedef enum _Keyword {
 
 typedef struct _Token {
     TokenType type;
+    uint line_number;
     union {
         Keyword keyword;
         char symbol;
@@ -31,4 +32,21 @@ typedef struct _Token {
     char var_val[];
 } Token;
 
+typedef enum _VMStackCommands {
+    VM_PUSH, VM_POP
+} VMStackCommands;
+
+typedef enum _VMSegments {
+    VM_CONSTANT, VM_ARGUMENT, VM_LOCAL, VM_STATIC, VM_THIS, VM_THAT, VM_POINTER, VM_TEMP
+} VMSegments;
+
+typedef enum _VMArithLog {
+    VM_ADD, VM_SUB, VM_NEG, VM_EQ, VM_GT, VM_LT, VM_AND, VM_OR, VM_NOT
+} VMArithLog;
+
+typedef enum _VMBranching {
+    VM_LABEL, VM_GOTO, VM_IF_GOTO
+} VMBranching;
+
 #endif // JACK_TYPES
+

@@ -1,3 +1,6 @@
+#ifndef JACK_SYMBOL_TABLE
+#define JACK_SYMBOL_TABLE
+
 #include <stdio.h>
 #include "JackTypes.c"
 
@@ -8,6 +11,7 @@ bool addSymtabEntry(VariableSymtabEntry *symtab, char *name, char *type, char *k
 void resetSymtab(VariableSymtabEntry *symtab);
 VariableSymtabEntry *lookupSymtabEntry(char *name);
 void printSymtabs(bool global, bool sub);
+void printSymtab(VariableSymtabEntry *symtab_p, char *name_p);
 
 static VariableSymtabEntry g_global_symtab[GLOBAL_SYMTAB_LEN];
 static VariableSymtabEntry g_subroutine_symtab[SUBROUTINE_SYMTAB_LEN];
@@ -20,7 +24,6 @@ bool addSymtabEntry(VariableSymtabEntry *symtab, char *name, char *type, char *k
     for (i = 0; symtab[i].name[0] != '\0'; ++i) {
         if (strcmp(symtab[i].name, name) == 0) {
             return false;
-            // compileErr("reused variable name");
         }
         if (strcmp(symtab[i].kind, kind) == 0) {
             entry_index++;
@@ -58,24 +61,35 @@ VariableSymtabEntry *lookupSymtabEntry(char *name)
 
 void printSymtabs(bool global, bool sub)
 {
-    VariableSymtabEntry curr_entry;
-
+    printf("\n");
     if (global) {
-        printf("global\n");
-        for (uint i = 0; g_global_symtab[i].name[0] && i < GLOBAL_SYMTAB_LEN; ++i) {
-            curr_entry = g_global_symtab[i];
-            printf("| %-6s | %-10s | %-3d | %s\n",
-                curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
-        }
+        printSymtab(g_global_symtab, "global");
     }
-
     if (sub) {
-        printf("subroutine\n");
-        for (uint i = 0; g_subroutine_symtab[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
-            curr_entry = g_subroutine_symtab[i];
-            printf("| %-6s | %-10s | %-3d | %s\n",
-                curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
-        }
+        printSymtab(g_subroutine_symtab, "subroutine");
     }
 }
+
+void printSymtab(VariableSymtabEntry *symtab_p, char *name_p)
+{
+    VariableSymtabEntry curr_entry;
+    uint max_name_len = 0;
+
+    printf("%s\n", name_p);
+    for (uint i = 0; symtab_p[i].name[0] && i < SUBROUTINE_SYMTAB_LEN; ++i) {
+        curr_entry = symtab_p[i];
+        uint entry_name_len = strlen(curr_entry.name);
+        if (max_name_len < entry_name_len) {
+            max_name_len = entry_name_len;
+        }
+        printf("| %-6s | %-10s | %-3d | %s\n",
+            curr_entry.kind, curr_entry.type, curr_entry.entry_index, curr_entry.name);
+    }
+    for (uint i = 0; i < 32 + max_name_len; ++i) {
+        printf("-");
+    }
+    printf("\n");
+}
+
+#endif // JACK_SYMBOL_TABLE
 

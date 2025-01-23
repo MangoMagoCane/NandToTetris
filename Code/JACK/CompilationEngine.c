@@ -38,7 +38,8 @@ void compileReturn();
 void compileExpression();
 void compileTerm();
 uint compileExpressionList();
-static const char *convertOpToVM(char op, bool isUnary);
+void convertOpToVM(char op, bool isUnary);
+
 
 bool addSymtabEntry_(VariableSymtabEntry *symtab, char *name, char *type, char *kind) {
     if (!addSymtabEntry(symtab, name, type, kind)) {
@@ -76,7 +77,7 @@ bool process(TokenType type, uint64_t _data, ProcessOptional optional)
     }
 
     if (retval) {
-        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+        writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
     } else if (optional == MAND) {
         compileErr("Token");
@@ -87,7 +88,7 @@ bool process(TokenType type, uint64_t _data, ProcessOptional optional)
 
 void compileClass()
 {
-    printNontermStartXML("class");
+    writeNontermStartXML("class");
     resetSymtab(g_global_symtab);
 
     process(KEYWORD, CLASS, MAND);
@@ -112,16 +113,16 @@ void compileClass()
     process(SYMBOL, '}', MAND);
 
     printSymtabs(true, false);
-    printNontermEndXML("class");
+    writeNontermEndXML("class");
 }
 
 void compileClassVarDec()
 {
-    printNontermStartXML("classVarDec");
+    writeNontermStartXML("classVarDec");
     char type_buf[CURR_TOKEN_BUF_LEN];
     char kind_buf[CURR_TOKEN_BUF_LEN];
 
-    strncpy(kind_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (kind_buf));
+    strncpy(kind_buf, TOKEN_KEYWORD_STR(curr_token), LENGTHOF(kind_buf));
     if (process(KEYWORD, STATIC, OPTNL) || process(KEYWORD, FIELD, MAND)) {}
     if (!isType(curr_token)) {
         compileErr("type");
@@ -131,7 +132,7 @@ void compileClassVarDec()
     } else {
         strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
     }
-    printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+    writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
     advance();
 
     addSymtabEntry(g_global_symtab, curr_token->var_val, type_buf, kind_buf);
@@ -142,12 +143,12 @@ void compileClassVarDec()
     }
     process(SYMBOL, ';', MAND);
 
-    printNontermEndXML("classVarDec");
+    writeNontermEndXML("classVarDec");
 }
 
 void compileSubroutine()
 {
-    printNontermStartXML("subroutineDec");
+    writeNontermStartXML("subroutineDec");
     resetSymtab(g_subroutine_symtab);
 
     if (process(KEYWORD, CONSTRUCTOR, OPTNL)) {
@@ -157,7 +158,7 @@ void compileSubroutine()
     }
 
     if (isType(curr_token)) {
-        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+        writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
     } else {
         process(KEYWORD, VOID, MAND);
@@ -172,16 +173,16 @@ void compileSubroutine()
 
     printSymtabs(false, true);
 
-    printNontermEndXML("subroutineDec");
+    writeNontermEndXML("subroutineDec");
 }
 
 void compileParameterList()
 {
-    printNontermStartXML("parameterList");
+    writeNontermStartXML("parameterList");
     char type_buf[CURR_TOKEN_BUF_LEN];
 
     if (isType(curr_token)) {
-        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+        writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
         if (curr_token->type == IDENTIFIER) {
             strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
         } else {
@@ -195,7 +196,7 @@ void compileParameterList()
             if (!isType(curr_token)) {
                 compileErr("type");
             }
-            printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+            writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
             if (curr_token->type == IDENTIFIER) {
                 strncpy(type_buf, curr_token->var_val, sizeof (type_buf));
             } else {
@@ -208,12 +209,12 @@ void compileParameterList()
         }
     }
 
-    printNontermEndXML("parameterList");
+    writeNontermEndXML("parameterList");
 }
 
 void compileSubroutineBody()
 {
-    printNontermStartXML("subroutineBody");
+    writeNontermStartXML("subroutineBody");
 
     process(SYMBOL, '{', MAND);
     while (curr_token->type == KEYWORD && curr_token->fixed_val.keyword == VAR) {
@@ -222,12 +223,12 @@ void compileSubroutineBody()
     compileStatements();
     process(SYMBOL, '}', MAND);
 
-    printNontermEndXML("subroutineBody");
+    writeNontermEndXML("subroutineBody");
 }
 
 void compileVarDec()
 {
-    printNontermStartXML("varDec");
+    writeNontermStartXML("varDec");
     char type_buf[CURR_TOKEN_BUF_LEN];
 
     process(KEYWORD, VAR, MAND);
@@ -239,7 +240,7 @@ void compileVarDec()
     } else {
         strncpy(type_buf, TOKEN_KEYWORD_STR(curr_token), sizeof (type_buf));
     }
-    printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+    writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
     advance();
 
     do {
@@ -248,14 +249,14 @@ void compileVarDec()
     } while (process(SYMBOL, ',', OPTNL));
     process(SYMBOL, ';', MAND);
 
-    printNontermEndXML("varDec");
+    writeNontermEndXML("varDec");
 }
 
 void compileStatements()
 {
-    printNontermStartXML("statements");
+    writeNontermStartXML("statements");
 
-    while (curr_token->type == KEYWORD) {
+    while (isKeyword(curr_token)) {
         switch (curr_token->fixed_val.keyword) {
         case LET:
             compileLet();
@@ -276,20 +277,28 @@ void compileStatements()
         break;
     }
 
-    printNontermEndXML("statements");
+    writeNontermEndXML("statements");
 }
 
 void compileLet()
 {
-    printNontermStartXML("letStatement");
+    writeNontermStartXML("letStatement");
+    bool is_arr_index = false;
 
     process(KEYWORD, LET, MAND);
-    if (curr_token->type != IDENTIFIER) {
+    if (!isIdentifier(curr_token)) {
         compileErr("variable name");
     }
-    printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+    Token *identifier_p = copyToken(NULL, curr_token);
+    VariableSymtabEntry *entry_p = lookupSymtabEntry(curr_token->var_val);
+    if (entry_p == NULL) {
+        fprintf(stderr, "ERR: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
+        exit(EXIT_FAILURE);
+    }
+    writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
     advance();
     if (process(SYMBOL, '[', OPTNL)) {
+        is_arr_index = true;
         compileExpression();
         process(SYMBOL, ']', MAND);
     }
@@ -297,181 +306,233 @@ void compileLet()
     compileExpression();
     process(SYMBOL, ';', MAND);
 
-    printNontermEndXML("letStatement");
+    if (!is_arr_index) {
+        writeVariable(VM_POP, entry_p);
+    }
+
+    writeNontermEndXML("letStatement");
 }
 
 void compileIf()
 {
-    printNontermStartXML("ifStatement");
+    writeNontermStartXML("ifStatement");
 
+    uint curr_label_i = g_label_i;
+    g_label_i += 2;
     process(KEYWORD, IF, MAND);
     process(SYMBOL, '(', MAND);
+
     compileExpression();
+    writeArithLog(VM_NOT);
+    writeBranching(VM_IF_GOTO, curr_label_i + 1);
+
     process(SYMBOL, ')', MAND);
     process(SYMBOL, '{', MAND);
+
     compileStatements();
+
     process(SYMBOL, '}', MAND);
     if (process(KEYWORD, ELSE, OPTNL)) {
         process(SYMBOL, '{', MAND);
+
+        writeBranching(VM_GOTO, curr_label_i + 2);
+        writeBranching(VM_LABEL, curr_label_i + 1);
         compileStatements();
+        writeBranching(VM_LABEL, curr_label_i + 2);
+
         process(SYMBOL, '}', MAND);
+    } else {
+        writeBranching(VM_LABEL, curr_label_i + 1);
     }
 
-    printNontermEndXML("ifStatement");
+    writeNontermEndXML("ifStatement");
 }
 
 void compileWhile()
 {
-    printNontermStartXML("whileStatement");
+    writeNontermStartXML("whileStatement");
 
+    uint curr_label_i = g_label_i;
+    g_label_i += 2;
     process(KEYWORD, WHILE, MAND);
     process(SYMBOL, '(', MAND);
+
+    writeBranching(VM_LABEL, curr_label_i + 1);
     compileExpression();
+    writeArithLog(VM_NOT);
+    writeBranching(VM_IF_GOTO, curr_label_i + 2);
+
     process(SYMBOL, ')', MAND);
     process(SYMBOL, '{', MAND);
+
     compileStatements();
+    writeBranching(VM_GOTO, curr_label_i + 1);
+    writeBranching(VM_LABEL, curr_label_i + 2);
+
     process(SYMBOL, '}', MAND);
 
-    printNontermEndXML("whileStatement");
+    writeNontermEndXML("whileStatement");
 }
 
 void compileDo()
 {
-    printNontermStartXML("doStatement");
+    writeNontermStartXML("doStatement");
 
     process(KEYWORD, DO, MAND);
     Token *identifier_p = copyToken(NULL, curr_token);
+    VariableSymtabEntry *entry_p = lookupSymtabEntry(identifier_p->var_val);
     process(IDENTIFIER, NULL, MAND);
     if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
-        compileExpressionList();
+        uint expression_count = compileExpressionList();
+        writeCall(identifier_p->var_val, expression_count);
         process(SYMBOL, ')', MAND);
     } else if (process(SYMBOL, '.', OPTNL)) {  // IDENTIFIER = className | varName
+        Token *subroutine_name_p = copyToken(NULL, curr_token);
+        if (entry_p != NULL) {
+            writeVariable(VM_PUSH, entry_p);
+        }
         process(IDENTIFIER, NULL, MAND);
         process(SYMBOL, '(', MAND);
-        compileExpressionList();
+        uint expression_count = compileExpressionList();
+        if (entry_p != NULL) {
+            writeMethodCall(entry_p->type, subroutine_name_p->var_val, ++expression_count);
+        } else {
+            writeMethodCall(identifier_p->var_val, subroutine_name_p->var_val, expression_count);
+        }
+        freeToken(subroutine_name_p);
         process(SYMBOL, ')', MAND);
     } else {
         compileErr("symbol");
     }
     process(SYMBOL, ';', MAND);
+    writeStackCommand(VM_POP, VM_TEMP, 0);
 
     freeToken(identifier_p);
-    printNontermEndXML("doStatement");
+    writeNontermEndXML("doStatement");
 }
 
 void compileReturn()
 {
-    printNontermStartXML("returnStatement");
+    writeNontermStartXML("returnStatement");
 
     process(KEYWORD, RETURN, MAND);
     if (!process(SYMBOL, ';', OPTNL)) {
         compileExpression();
         process(SYMBOL, ';', MAND);
+    } else {
+        writeStackCommand(VM_PUSH, VM_CONSTANT, 0);
     }
+    writeReturn();
 
-    printNontermEndXML("returnStatement");
+    writeNontermEndXML("returnStatement");
 }
 
 void compileExpression()
 {
-    printNontermStartXML("expression");
+    writeNontermStartXML("expression");
 
     compileTerm();
     while (isOp(curr_token, false)) {
-        const char *vm_op_p = convertOpToVM(curr_token->fixed_val.symbol, false);
-        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+        // const char *vm_op_p = convertOpToVM(curr_token->fixed_val.symbol, false);
+        const char op_symbol = curr_token->fixed_val.symbol;
+        writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
         compileTerm();
-        printf("%s\n", vm_op_p);
+        convertOpToVM(op_symbol, false);
     }
 
-    printNontermEndXML("expression");
+    writeNontermEndXML("expression");
 }
 
 void compileTerm()
 {
-    printNontermStartXML("term");
+    writeNontermStartXML("term");
 
     const TokenType type = curr_token->type;
     const TokenType keyword = curr_token->fixed_val.keyword;
     bool single_token_term = true;
 
     if (type == INT_CONST) {
-        printf("push constant %s\n", curr_token->var_val);
+        // printf("push constant %s\n", curr_token->var_val);
+        writeStackCommand(VM_PUSH, VM_CONSTANT, TOKEN_INT_CONST_INT(curr_token));
     } else if (type == STRING_CONST) { // NOT IMPLEMENTED
         size_t tokstr_len = strlen(curr_token->var_val);
-        printf("push constant %d\n", tokstr_len);
-        printf("call String.new 1\n");
+        writeStackCommand(VM_PUSH, VM_CONSTANT, tokstr_len);
+        writeCall("String.new", 1);
         for (uint i = 0; i < tokstr_len; ++i) {
-            printf("push constant %d\n", curr_token->var_val[i]);
-            printf("call String.appendChar 1\n");
+            writeStackCommand(VM_PUSH, VM_CONSTANT, curr_token->var_val[i]);
+            writeCall("String.appendChar", 1);
         }
     } else if (keyword == TRUE) {
-        printf("push constant 1\n");
-        printf("push neg\n");
+        writeStackCommand(VM_PUSH, VM_CONSTANT, 1);
+        writeArithLog(VM_NEG);
     } else if (keyword == FALSE || keyword == NIL) {
-        printf("push constant 0\n");
+        writeStackCommand(VM_PUSH, VM_CONSTANT, 0);
     } else if (keyword == THIS) { // NOT IMPLEMENTED
     } else {
         single_token_term = false;
     }
 
     if (single_token_term) {
-        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+        writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
-        printNontermEndXML("term");
+        writeNontermEndXML("term");
         return;
     }
 
     Token *identifier_p = copyToken(NULL, curr_token);
 
     if (process(IDENTIFIER, NULL, OPTNL)) {
+        VariableSymtabEntry *entry_p = lookupSymtabEntry(identifier_p->var_val);
         if (process(SYMBOL, '[', OPTNL)) { // IDENTIFIER = varName
             compileExpression();
             process(SYMBOL, ']', MAND);
         } else if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
             uint expression_count = compileExpressionList();
-            printf("call %s %d\n", identifier_p->var_val, expression_count);
+            writeCall(identifier_p->var_val, expression_count);
             process(SYMBOL, ')', MAND);
         } else if (process(SYMBOL, '.', OPTNL)) { // IDENTIFIER = className | varName
             Token *subroutine_name_p = copyToken(NULL, curr_token);
-            VariableSymtabEntry *entry_p = lookupSymtabEntry(identifier_p->var_val);
             if (entry_p != NULL) {
-                printf("push %s %s\n", identifier_p->var_val);
+                writeVariable(VM_PUSH, entry_p);
             }
             process(IDENTIFIER, NULL, MAND);
             process(SYMBOL, '(', MAND);
             uint expression_count = compileExpressionList();
             if (entry_p != NULL) {
-                printf("call %s.%s %d\n", entry_p->type, subroutine_name_p->var_val, ++expression_count);
+                writeMethodCall(entry_p->type, subroutine_name_p->var_val, ++expression_count);
             } else {
-                printf("call %s.%s %d\n", identifier_p->var_val, subroutine_name_p->var_val, expression_count);
+                writeMethodCall(identifier_p->var_val, subroutine_name_p->var_val, expression_count);
             }
             freeToken(subroutine_name_p);
             process(SYMBOL, ')', MAND);
         } else { // IDENTIFIER = varName
-            printf("push %s\n", identifier_p->var_val);
+            if (entry_p == NULL) {
+                fprintf(stderr, "ERR: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
+                exit(EXIT_FAILURE);
+            }
+            writeVariable(VM_PUSH, entry_p);
         }
     } else if (process(SYMBOL, '(', OPTNL)) {
         compileExpression();
         process(SYMBOL, ')', MAND);
     } else if (isOp(curr_token, true)) {
-        const char *vm_op_p = convertOpToVM(curr_token->fixed_val.symbol, true);
-        printXML(curr_token, TOKEN_TYPE_STR(curr_token));
+        const char op_symbol = curr_token->fixed_val.symbol;
+        writeXML(curr_token, TOKEN_TYPE_STR(curr_token));
         advance();
         compileTerm();
-        printf("%s\n", vm_op_p);
+        convertOpToVM(op_symbol, true);
     } else { // should error??
         compileErr("term");
     }
 
     freeToken(identifier_p);
-    printNontermEndXML("term");
+    writeNontermEndXML("term");
 }
 
 uint compileExpressionList() {
 
-    printNontermStartXML("expressionList");
+    writeNontermStartXML("expressionList");
 
     uint expression_count = 0;
     if (curr_token->type != SYMBOL || curr_token->fixed_val.symbol != ')') {
@@ -483,30 +544,48 @@ uint compileExpressionList() {
         }
     }
 
-    printNontermEndXML("expressionList");
+    writeNontermEndXML("expressionList");
     return expression_count;
 }
 
-static const char *convertOpToVM(char op, bool isUnary) {
-    static const char *op_mappings[] = {
-        "add", "sub", "call Math.multiply 2", "call Math.divide 2",
-        "and", "or", "lt", "gt", "eq"
+void convertOpToVM(char op, bool isUnary) {
+    static const VMArithLog op_mappings[] = {
+        VM_ADD, VM_SUB, -1, -1, VM_AND, VM_OR, VM_LT, VM_GT, VM_EQ
     };
 
     if (isUnary) {
         if (op == '-') {
-            return "neg";
-        } else if (op == '~') {
-            return "not";
+            writeArithLog(VM_NEG);
+            return;
         }
+        if (op == '~') {
+            writeArithLog(VM_NOT);
+            return;
+        }
+        fprintf(stderr, "ERR: Invalid unary op: %c\n", op);
+        exit(EXIT_FAILURE);
+    }
+
+    if (op == '*') {
+        writeCall("Math.multiply", 2);
+        return;
+    }
+    if (op == '/') {
+        writeCall("Math.divide", 2);
+        return;
     }
 
     for (uint i = 0; i < OP_LEN; ++i) {
         if (op == g_ops[i]) {
-            return op_mappings[i];
+            writeArithLog(op_mappings[i]);
+            return;
         }
     }
+
+    fprintf(stderr, "ERR: Invalid op: %c\n", op);
+    exit(EXIT_FAILURE);
 }
 
 
 #endif // JACK_COMPILATION_ENGINE
+

@@ -18,6 +18,7 @@ Token *advance();
 bool isOp(Token *token_p, bool is_unary);
 bool isType(Token *token_p);
 bool isIdentifier(Token *token_p);
+bool isKeyword(Token *token_p);
 
 #define freeToken(token_p) \
     free(token_p)
@@ -25,6 +26,8 @@ bool isIdentifier(Token *token_p);
     g_token_types[token_p->type]
 #define TOKEN_KEYWORD_STR(token_p) \
     g_keywords[token_p->fixed_val.keyword]
+#define TOKEN_INT_CONST_INT(token_p) \
+    strtol(token_p->var_val, NULL, 10)
 
 static const char *g_keywords[] = {
     "class", "method", "function", "constructor", "int", "boolean", "char", "void", "var",
@@ -39,6 +42,7 @@ static const char g_symbols[] = {
 static const char g_ops[] = {
     '+', '-', '*', '/', '&', '|', '<', '>', '='
 };
+
 static const char g_unary_ops[] = {
     '-', '~'
 };
@@ -218,6 +222,7 @@ load_line:
         }
         g_line_buf_p = &strstr_p[2];
     }
+    curr_token->line_number = g_curr_line;
     // string const
     char *printing_p = g_line_buf_p;
     char c = *g_line_buf_p;
@@ -320,6 +325,11 @@ bool isType(Token *token_p)
 bool isIdentifier(Token *token_p)
 {
     return token_p->type == IDENTIFIER;
+}
+
+bool isKeyword(Token *token_p)
+{
+    return token_p->type == KEYWORD;
 }
 
 Token *advance_() {
