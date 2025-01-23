@@ -57,13 +57,13 @@
 #define GOTO    "@%s$%s\n0;JMP\n"
 #define IF_GOTO POP_D "@%s$%s\nD;JNE\n"
 
-typedef enum stack_command_t {
+typedef enum _StackCommands {
     PUSH, POP
-} stack_command_t;
+} StackCommands;
 
-typedef enum segment_indices_t {
+typedef enum _SegmentIndices {
     CALLEE, POINTER, TEMP, STATIC
-} segment_indices_t;
+} SegmentIndices;
 
 #define MAX_STATIC_COUNT 240
 #define WRITER_NAME_BUFSIZE 128
@@ -82,13 +82,13 @@ void setWriterOutputFile(FILE *fp, bool is_incoming_dir)
 
 void setWriterFileName(char *file_name_p)
 {
-    strncpy(curr_file_name, file_name_p, sizeof (curr_file_name));
+    strncpy(curr_file_name, file_name_p, LENGTHOF(curr_file_name));
     fprintf(writer_fp, "//   --%s START--\n", file_name_p);
 }
 
 void setWriterFuncName(char* func_name_p)
 {
-    strncpy(curr_func_name, func_name_p, sizeof (curr_func_name));
+    strncpy(curr_func_name, func_name_p, LENGTHOF(curr_func_name));
 }
 
 void WriteStart()

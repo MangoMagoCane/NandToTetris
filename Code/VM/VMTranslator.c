@@ -13,8 +13,7 @@
 #include "../utilities.h"
 
 int parseFile(FILE* f_input, char* filename_p);
- 
-#define TOK_BUFSIZE 16
+
 #define INPUT_BUFSIZE 1024
 
 int main(int argc, char* argv[])
@@ -107,6 +106,7 @@ int parseFile(FILE* f_input, char* file_name_p)
 {
     char input_buf[INPUT_BUFSIZE];
     char strtok_buf[INPUT_BUFSIZE];
+
     setWriterFileName(file_name_p);
     for (uint line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; ++line_num) {
         char c;
@@ -119,7 +119,9 @@ int parseFile(FILE* f_input, char* file_name_p)
         strncpy(strtok_buf, input_buf, sizeof (strtok_buf));
 
         char* c_p = strtok(strtok_buf, " \t\n"); // command  pop   call
-        if (c_p == NULL) continue;
+        if (c_p == NULL) {
+            continue;
+        }
         char* s_p = strtok(NULL, " \t\n");       // segment  local power
         char* i_p = strtok(NULL, " \t\n");       // index    3
         char* o_p = strtok(NULL, " \t\n");       // overflow random
