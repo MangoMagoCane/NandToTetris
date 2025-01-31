@@ -10,15 +10,16 @@
 
 bool setWriterOutputFiles(char *file_path_p);
 void compileErr(char *err_name);
-void writeVariable(VMStackCommands stack_command_e, VariableSymtabEntry *entry_p);
-void writeStackCommand(VMStackCommands stack_command_e, VMSegments segment_e, uint index);
+void writeVariable(VMStackCommand stack_command_e, VariableSymtabEntry *entry_p);
+void writeStackCommand(VMStackCommand stack_command_e, VMSegment segment_e, uint index);
 void writeArithLog(VMArithLog arith_log_e);
 bool writeBranching(VMBranching branching_e, uint label_id);
 void incrementWriterLabel(uint inc_val);
 void writeCall(char *func_name_p, uint arg_count);
 void writeMethodCall(char *object_name_p, char *func_name_p, uint arg_count);
+void writeFunction(char *const func_name_p, uint var_count);
 void writeReturn();
-void writeXML(const Token *token_p, const char *grammar_elem);
+void writeXML(Token *const token_p, char *const grammar_elem);
 void writeNontermStartXML(char *string);
 void writeNontermEndXML(char *string);
 
@@ -49,7 +50,7 @@ bool setWriterOutputFiles(char *file_path_p)
         fclose(g_XML_writer_fp);
         return false;
     }
-    g_jack_writer_fp = stdout;
+    // g_jack_writer_fp = stdout;
 
     char *filename_p = getFilename(file_path_p);
     size_t filename_len = MIN(filename_p, sizeof (g_writer_name_buf));
@@ -60,36 +61,41 @@ bool setWriterOutputFiles(char *file_path_p)
     return true;
 }
 
-void compileErr(char *err_name)
+void compileErr(char *err_name_p)
 {
-    fprintf(stderr, "%s\nERR: Invalid %s on line: %d\n", g_writer_name_buf, err_name, g_curr_line);
+    fprintf(stderr, "%s\nERR: Invalid %s on line: %d\n", g_writer_name_buf, err_name_p, g_curr_line);
     printToken(curr_token);
     exit(EXIT_FAILURE);
 }
 
-void writeVariable(VMStackCommands stack_command_e, VariableSymtabEntry *entry_p)
+void writeVariable(VMStackCommand stack_command_e, VariableSymtabEntry *entry_p)
 {
-    static const char *lookup_kind_buf[] = {
-        "static", "field", "arg", "var"
-    };
-    static const VMSegments lookup_kind_enum[] = {
-        VM_STATIC, VM_THIS, VM_ARGUMENT, VM_LOCAL
-    };
+    VMSegment segment_e;
 
-    for (uint i = 0; i < LENGTHOF(lookup_kind_buf); ++i) {
-        if (strncmp(entry_p->kind, lookup_kind_buf[i], VARIABLE_SYMTAB_KIND_LEN) == 0) {
-            writeStackCommand(stack_command_e, lookup_kind_enum[i], entry_p->entry_index);
-            return;
-        }
+    switch (entry_p->kind) {
+    case VST_STATIC:
+        segment_e = VM_STATIC;
+        break;
+    case VST_FIELD:
+        segment_e = VM_THIS;
+        break;
+    case VST_ARG:
+        segment_e = VM_ARGUMENT;
+        break;
+    case VST_VAR:
+        segment_e = VM_LOCAL;
+        break;
     }
+
+    writeStackCommand(stack_command_e, segment_e, entry_p->entry_index);
 }
 
-void writeStackCommand(VMStackCommands stack_command_e, VMSegments segment_e, uint index)
+void writeStackCommand(VMStackCommand stack_command_e, VMSegment segment_e, uint index)
 {
-    static const char *stack_commands[] = {
+    static char *const stack_commands[] = {
         "push", "pop"
     };
-    static const char *segments[] = {
+    static char *const segments[] = {
         "constant", "argument", "local", "static", "this", "that", "pointer", "temp"
     };
 
@@ -129,7 +135,7 @@ bool writeBranching(VMBranching branching_e, uint label_id)
         fprintf(stderr, "ERR: Invalid branching command: %d\n", branching_e);
         exit(EXIT_FAILURE);
     }
-    printf("%s L%d\n", branching_commands[branching_e], label_id);
+    fprintf(g_jack_writer_fp, "%s L%d\n", branching_commands[branching_e], label_id);
 }
 
 void incrementWriterLabel(uint inc_val)
@@ -154,12 +160,17 @@ void writeMethodCall(char *object_name_p, char *func_name_p, uint arg_count)
     writeCall(vm_token_buf, arg_count);
 }
 
+void writeFunction(char *const func_name_p, uint var_count)
+{
+    fprintf(g_jack_writer_fp, "function %s.%s %d\n", g_writer_name_buf, func_name_p, var_count);
+}
+
 void writeReturn()
 {
     fprintf(g_jack_writer_fp, "return\n");
 }
 
-void writeXML(const Token *token_p, const char *grammar_elem)
+void writeXML(Token *const token_p, char *const grammar_elem)
 {
     if (g_XML_writer_fp == NULL) {
         return;

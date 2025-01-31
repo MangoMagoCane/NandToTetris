@@ -29,7 +29,7 @@ bool isKeyword(Token *token_p);
 #define TOKEN_INT_CONST_INT(token_p) \
     strtol(token_p->var_val, NULL, 10)
 
-static const char *g_keywords[] = {
+static char *const g_keywords[] = {
     "class", "method", "function", "constructor", "int", "boolean", "char", "void", "var",
     "static", "field", "let", "do", "if", "else", "while", "return", "true", "false", "null", "this"
 };
@@ -47,7 +47,7 @@ static const char g_unary_ops[] = {
     '-', '~'
 };
 
-const char *g_token_types[] = {
+static char *const g_token_types[] = {
     "keyword", "symbol", "identifier", "integerConstant", "stringConstant"
 };
 
@@ -65,16 +65,16 @@ static char g_line_buf[LINE_BUF_LEN] = { 0 };
 static FILE *g_curr_file_p = NULL;
 static char *g_line_buf_p = NULL;
 
-Token *g_pushback_buf[PUSHBACK_BUF_LEN];
+static Token *g_pushback_buf[PUSHBACK_BUF_LEN] = { 0 };
 static int g_pushback_i = 0;
 
-Token *curr_token;
-char g_curr_token[CURR_TOKEN_BUF_LEN];
+static Token *curr_token = NULL;
+static char g_curr_token[CURR_TOKEN_BUF_LEN] = { 0 };
 
-bool g_tokens_left = true;
-bool g_empty_line = true;
-bool g_in_multi_line = false;
-uint g_curr_line = 0;
+static bool g_tokens_left = true;
+static bool g_empty_line = true;
+static bool g_in_multi_line = false;
+static uint g_curr_line = 0;
 
 void printToken(Token *token_p)
 {
@@ -340,3 +340,4 @@ Token *advance_() {
 // #define advance() advance_()
 
 #endif // NANDTOTETRIS_JACK_TOKENIZER
+
