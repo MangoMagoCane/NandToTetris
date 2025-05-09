@@ -1,4 +1,5 @@
 *.hack
 *.exe
 .vscode
-!.c
+!.ck
+target/

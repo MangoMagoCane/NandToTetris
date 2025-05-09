@@ -1,12 +1,17 @@
+// --PROGRAM START--
+//   --Foo START--
+// push constant 50
 @50
 D=A
 @SP
 M=M+1
 A=M-1
 M=D
+// neg
 @SP
 A=M-1
 M=-M
+// pop local 0
 @SP
 AM=M-1
 D=M
@@ -23,6 +28,7 @@ D=M
 @R14
 A=M
 M=D
+// push local 0
 @0
 D=A
 @LCL
@@ -32,12 +38,14 @@ D=M
 M=M+1
 A=M-1
 M=D
+// push constant 0
 @0
 D=A
 @SP
 M=M+1
 A=M-1
 M=D
+// lt
 @Foo_0
 D=A
 @R13
@@ -51,18 +59,22 @@ D=M-D
 D;JLT
 @f_jmp
 0;JMP
+(Foo_0)
+// push static 0
 @Foo.0
 D=M
 @SP
 M=M+1
 A=M-1
 M=D
+// push constant 1
 @1
 D=A
 @SP
 M=M+1
 A=M-1
 M=D
+// push argument 2
 @2
 D=A
 @ARG
@@ -72,11 +84,13 @@ D=M
 M=M+1
 A=M-1
 M=D
+// add
 @SP
 AM=M-1
 D=M
 A=A-1
 M=D+M
+// call Math.multiply 2
 @__global__$ret.0
 D=A
 @SP
@@ -119,6 +133,8 @@ D=M
 M=D
 @Math.multiply
 0;JMP
+(__global__$ret.0)
+// pop local 0
 @SP
 AM=M-1
 D=M
@@ -135,6 +151,7 @@ D=M
 @R14
 A=M
 M=D
+// push local 0
 @0
 D=A
 @LCL
@@ -144,12 +161,14 @@ D=M
 M=M+1
 A=M-1
 M=D
+// push constant 10
 @10
 D=A
 @SP
 M=M+1
 A=M-1
 M=D
+// eq
 @Foo_1
 D=A
 @R13
@@ -163,12 +182,15 @@ D=M-D
 D;JEQ
 @f_jmp
 0;JMP
+(Foo_1)
+// push constant 0
 @0
 D=A
 @SP
 M=M+1
 A=M-1
 M=D
+// return
 @LCL
 D=M
 @R13
@@ -211,6 +233,7 @@ M=D
 @R14
 A=M
 0;JMP
+// push local 1
 @1
 D=A
 @LCL
@@ -220,29 +243,34 @@ D=M
 M=M+1
 A=M-1
 M=D
+// push constant 4
 @4
 D=A
 @SP
 M=M+1
 A=M-1
 M=D
+// push static 1
 @Foo.1
 D=M
 @SP
 M=M+1
 A=M-1
 M=D
+// push constant 5
 @5
 D=A
 @SP
 M=M+1
 A=M-1
 M=D
+// sub
 @SP
 AM=M-1
 D=M
 A=A-1
 M=M-D
+// push this 3
 @3
 D=A
 @THIS
@@ -252,9 +280,11 @@ D=M
 M=M+1
 A=M-1
 M=D
+// neg
 @SP
 A=M-1
 M=-M
+// call String.g 4
 @__global__$ret.1
 D=A
 @SP
@@ -297,6 +327,8 @@ D=M
 M=D
 @String.g
 0;JMP
+(__global__$ret.1)
+// return
 @LCL
 D=M
 @R13
@@ -339,8 +371,11 @@ M=D
 @R14
 A=M
 0;JMP
+// -- PROGRAM END--
+(end)
 @end
 0;JMP
+(t_jmp)
 @0
 D=!A
 A=M-1
@@ -348,6 +383,7 @@ M=D
 @R13
 A=M
 0;JMP
+(f_jmp)
 @0
 D=A
 A=M-1

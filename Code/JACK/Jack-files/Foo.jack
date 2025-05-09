@@ -1,12 +1,36 @@
 class Foo {
-    static int foo, bar;
-    field int baz;
+    static int stc0, stc1, lcl0, lcl1;
+    field Point ths0, ths1, ths2, ths3;
 
-    method void Bar(int a, int b) {
-        var String v1, v2;
-        //let a = x * (1 + rate);
-        //let a = (x < 7) | (y = 8);
-        //return (x + y) / 2;
-        return x + g(2, y - 5, -z);
+    function void Bar(int arg0, int arg1) {
+        var String lcl0, lcl1;
+
+        let lcl0 = -50;
+
+        if (lcl0) {
+            let lcl0 = lcl0[2];
+        } else {
+            let lcl1 = 4;
+        }
+
+        return lcl1;
+    }
+
+    constructor void baz(int arg0, int arg1) {
+        var String lcl0, lcl1;
+
+        while (lcl0 < 0) {
+            let lcl0 = lcl0 + stc0 * (1 + arg1);
+        }
+
+        while (lcl0 < 0) {
+            let lcl0 = stc0 * (1 + arg1);
+        }
+
+        return lcl1.g(4, stc1 - 5, -ths3);
     }
 }
+
+//let a = (x < 7) | (y = 8);
+//return (x + y) / 2;
+//return "";
