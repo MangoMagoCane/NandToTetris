@@ -1,5 +1,15 @@
 // --PROGRAM START--
 //   --Foo START--
+(Foo.Bar) // function Foo.Bar 2
+D=0
+@SP
+M=M+1
+A=M-1
+M=D
+@SP
+M=M+1
+A=M-1
+M=D
 // push constant 50
 @50
 D=A
@@ -38,48 +48,29 @@ D=M
 M=M+1
 A=M-1
 M=D
-// push constant 0
-@0
-D=A
+// not
 @SP
-M=M+1
 A=M-1
-M=D
-// lt
-@Foo_0
-D=A
-@R13
-M=D
+M=!M
+// if-goto L1
 @SP
 AM=M-1
 D=M
-A=A-1
-D=M-D
-@t_jmp
-D;JLT
-@f_jmp
-0;JMP
-(Foo_0)
-// push static 0
-@Foo.0
-D=M
-@SP
-M=M+1
-A=M-1
-M=D
-// push constant 1
-@1
+@Foo.Bar$L1
+D;JNE
+// push local 0
+@0
 D=A
-@SP
-M=M+1
-A=M-1
-M=D
-// push argument 2
-@2
-D=A
-@ARG
+@LCL
 A=D+M
 D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// push constant 2
+@2
+D=A
 @SP
 M=M+1
 A=M-1
@@ -90,50 +81,22 @@ AM=M-1
 D=M
 A=A-1
 M=D+M
-// call Math.multiply 2
-@__global__$ret.0
-D=A
+// pop pointer 1
 @SP
-M=M+1
-A=M-1
-M=D
-@LCL
+AM=M-1
 D=M
-@SP
-M=M+1
-A=M-1
-M=D
-@ARG
-D=M
-@SP
-M=M+1
-A=M-1
-M=D
-@THIS
-D=M
-@SP
-M=M+1
-A=M-1
-M=D
 @THAT
+M=D
+// push that 0
+@0
+D=A
+@THAT
+A=D+M
 D=M
 @SP
 M=M+1
 A=M-1
 M=D
-@7
-D=A
-@SP
-D=M-D
-@ARG
-M=D
-@SP
-D=M
-@LCL
-M=D
-@Math.multiply
-0;JMP
-(__global__$ret.0)
 // pop local 0
 @SP
 AM=M-1
@@ -151,41 +114,43 @@ D=M
 @R14
 A=M
 M=D
-// push local 0
-@0
+// goto L2
+@Foo.Bar$L2
+0;JMP
+// label L1
+(Foo.Bar$L1)
+// push constant 4
+@4
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+// pop local 1
+@SP
+AM=M-1
+D=M
+@R13
+M=D
+@1
+D=A
+@LCL
+D=D+M
+@R14
+M=D
+@R13
+D=M
+@R14
+A=M
+M=D
+// label L2
+(Foo.Bar$L2)
+// push local 1
+@1
 D=A
 @LCL
 A=D+M
 D=M
-@SP
-M=M+1
-A=M-1
-M=D
-// push constant 10
-@10
-D=A
-@SP
-M=M+1
-A=M-1
-M=D
-// eq
-@Foo_1
-D=A
-@R13
-M=D
-@SP
-AM=M-1
-D=M
-A=A-1
-D=M-D
-@t_jmp
-D;JEQ
-@f_jmp
-0;JMP
-(Foo_1)
-// push constant 0
-@0
-D=A
 @SP
 M=M+1
 A=M-1
@@ -233,6 +198,369 @@ M=D
 @R14
 A=M
 0;JMP
+(Foo.baz) // function Foo.baz 2
+D=0
+@SP
+M=M+1
+A=M-1
+M=D
+@SP
+M=M+1
+A=M-1
+M=D
+// push constant 4
+@4
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+// call Memory.alloc 1
+@Foo.baz$ret.0
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+@LCL
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@ARG
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@THIS
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@THAT
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@6
+D=A
+@SP
+D=M-D
+@ARG
+M=D
+@SP
+D=M
+@LCL
+M=D
+@Memory.alloc
+0;JMP
+(Foo.baz$ret.0)
+// pop pointer 0
+@SP
+AM=M-1
+D=M
+@THIS
+M=D
+// label L3
+(Foo.baz$L3)
+// push local 0
+@0
+D=A
+@LCL
+A=D+M
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// push constant 0
+@0
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+// lt
+@Foo_0
+D=A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+A=A-1
+D=M-D
+@t_jmp
+D;JLT
+@f_jmp
+0;JMP
+(Foo_0)
+// not
+@SP
+A=M-1
+M=!M
+// if-goto L4
+@SP
+AM=M-1
+D=M
+@Foo.baz$L4
+D;JNE
+// push local 0
+@0
+D=A
+@LCL
+A=D+M
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// push static 0
+@Foo.0
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// add
+@SP
+AM=M-1
+D=M
+A=A-1
+M=D+M
+// push constant 1
+@1
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+// push argument 1
+@1
+D=A
+@ARG
+A=D+M
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// add
+@SP
+AM=M-1
+D=M
+A=A-1
+M=D+M
+// call Math.multiply 2
+@Foo.baz$ret.1
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+@LCL
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@ARG
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@THIS
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@THAT
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@7
+D=A
+@SP
+D=M-D
+@ARG
+M=D
+@SP
+D=M
+@LCL
+M=D
+@Math.multiply
+0;JMP
+(Foo.baz$ret.1)
+// pop local 0
+@SP
+AM=M-1
+D=M
+@R13
+M=D
+@0
+D=A
+@LCL
+D=D+M
+@R14
+M=D
+@R13
+D=M
+@R14
+A=M
+M=D
+// goto L3
+@Foo.baz$L3
+0;JMP
+// label L4
+(Foo.baz$L4)
+// label L5
+(Foo.baz$L5)
+// push local 0
+@0
+D=A
+@LCL
+A=D+M
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// push constant 0
+@0
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+// lt
+@Foo_1
+D=A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+A=A-1
+D=M-D
+@t_jmp
+D;JLT
+@f_jmp
+0;JMP
+(Foo_1)
+// not
+@SP
+A=M-1
+M=!M
+// if-goto L6
+@SP
+AM=M-1
+D=M
+@Foo.baz$L6
+D;JNE
+// push static 0
+@Foo.0
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// push constant 1
+@1
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+// push argument 1
+@1
+D=A
+@ARG
+A=D+M
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+// add
+@SP
+AM=M-1
+D=M
+A=A-1
+M=D+M
+// call Math.multiply 2
+@Foo.baz$ret.2
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+@LCL
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@ARG
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@THIS
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@THAT
+D=M
+@SP
+M=M+1
+A=M-1
+M=D
+@7
+D=A
+@SP
+D=M-D
+@ARG
+M=D
+@SP
+D=M
+@LCL
+M=D
+@Math.multiply
+0;JMP
+(Foo.baz$ret.2)
+// pop local 0
+@SP
+AM=M-1
+D=M
+@R13
+M=D
+@0
+D=A
+@LCL
+D=D+M
+@R14
+M=D
+@R13
+D=M
+@R14
+A=M
+M=D
+// goto L5
+@Foo.baz$L5
+0;JMP
+// label L6
+(Foo.baz$L6)
 // push local 1
 @1
 D=A
@@ -285,7 +613,7 @@ M=D
 A=M-1
 M=-M
 // call String.g 4
-@__global__$ret.1
+@Foo.baz$ret.3
 D=A
 @SP
 M=M+1
@@ -327,7 +655,7 @@ D=M
 M=D
 @String.g
 0;JMP
-(__global__$ret.1)
+(Foo.baz$ret.3)
 // return
 @LCL
 D=M

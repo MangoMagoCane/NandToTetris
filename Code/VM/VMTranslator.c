@@ -10,7 +10,7 @@
 #include <uchar.h>
 #include <unistd.h>
 #include "VMWriters.c"
-#include "../utilities.h"
+#include "../utilities.c"
 
 int parseFile(FILE* f_input, char* filename_p);
 
@@ -18,7 +18,7 @@ int parseFile(FILE* f_input, char* filename_p);
 
 int main(int argc, char* argv[])
 {
-    err_t retval = 0;
+    Err retval = 0;
     if (argc != 2) {
         fprintf(stderr, "usage: ./VMTranslator (file.vm, dir)\n");
         retval = INVALID_ARG_CNT;
@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 
     bool parse_dir = false;
     char *extension_p;
-    char *path_p = getFileName(argv[1]);
+    char *path_p = getFilename(argv[1]);
     if (checkExtension(path_p, &extension_p, "vm") == false) {
         if (extension_p[0] == '.') {
             fprintf(stderr, "file path: %s has invalid extension: %s\n", path_p, extension_p);
@@ -131,6 +131,7 @@ int parseFile(FILE* f_input, char* file_name_p)
 
         switch (tok_count) {
         case 1:
+            int foo = 1;
             if (strcmp(c_p, "return") == 0) {
                 writeReturn();
             } else {
@@ -140,7 +141,7 @@ int parseFile(FILE* f_input, char* file_name_p)
         case 2:
             writer_retval = writeBranching(c_p, s_p);
             break;
-        case 3: ;
+        case 3:
             char* index_end_p;
             int index_val = strtol(i_p, &index_end_p, 10);
             if (index_val < 0 || *index_end_p != '\0') {

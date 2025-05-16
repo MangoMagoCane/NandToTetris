@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "../utilities.h"
+#include "../utilities.c"
 
 // command pop 2
 #define C_2 "@SP\nAM=M-1\nD=M\nA=A-1\n" 
@@ -146,7 +146,7 @@ int writePushPop(char *command_p, char *segment_p, uint index_val)
         { PUSH_TEMP, POP_TEMP }, { PUSH_STATIC, POP_STATIC }
     };
 
-    stack_command_t seg_val;
+    StackCommands seg_val;
     if (strcmp(command_p, "push") == 0) {
         seg_val = PUSH;
     } else if (strcmp(command_p, "pop") == 0) {
@@ -227,10 +227,13 @@ int writeBranching(char *command_p, char *label_p)
 {
     fprintf(writer_fp, "// %s %s\n", command_p, label_p);
     if (strcmp(command_p, "label") == 0) {
+        // fprintf(writer_fp, "// label %s %s", curr_func_name, label_p);
         fprintf(writer_fp, LABEL, curr_func_name, label_p);
     } else if (strcmp(command_p, "goto") == 0) {
+        // fprintf(writer_fp, "// goto %s %s", curr_func_name, label_p);
         fprintf(writer_fp, GOTO, curr_func_name, label_p);
     } else if (strcmp(command_p, "if-goto") == 0) {
+        // fprintf(writer_fp, "// if-goto %s %s", curr_func_name, label_p);
         fprintf(writer_fp, IF_GOTO, curr_func_name, label_p);
     } else {
         return -1;

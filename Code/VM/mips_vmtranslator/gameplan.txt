@@ -1,0 +1,91 @@
+SP    $sp
+LCL   $s0
+ARG   $s1
+THIS  $s2
+THAT  $s3
+R13   $s4
+R14   $s5
+R15   $s6
+
+--internal
+$t0-$t7 use for instructions
+$v0     trap code
+$a0     syscall input
+
+// push: write to stack, then dec
+// pop:  inc, then read from stack
+
+push constant %i
+    li      $t0, %i
+    sw      $t0, ($sp)
+    subi    $sp, $sp, 4
+
+push local/argument/this/that i
+    li      $t0, #i
+    sll     $t0, $t0, 2
+    add     $t0, $t0, #s_reg
+    lw      $t0, ($t0)
+--- sw      $t0, ($sp)
+    subi    $sp, $sp, 4
+
+pop local/argument/this/that i
+    li      $t0, #i
+    sll     $t0, $t0, 2
+    add     $t0, $t0, #s_reg
+--- addi    $sp, $sp, 4
+    lw      $t1, ($sp)
+    sw      $t1, ($t0)
+
+push static/temp i
+    li      $t0, #i
+    sll     $t0, $t0, 2
+    lw      $t0, #seg($t0)
+--- sw      $t0, ($sp)
+    subi    $sp, $sp, 4
+
+pop static/temp i
+    li      $t0, #i
+    sll     $t0, $t0, 2
+--- addi    $sp, $sp, 4
+    lw      $t1, ($sp)
+    sw      $t1, #seg($t0)
+
+push pointer i
+    sw      #this/that, ($sp)
+    subi    $sp, $sp, 4
+
+pop pointer i
+    addi    $sp, $sp, 4
+    lw      #this/that, ($sp)
+
+add/sub/and/or
+    lw      $t0, 8($sp)
+    lw      $t1, 4($sp)
+    #op     $t0, $t0, $t1
+    addi    $sp, $sp, 4
+    sw      $t0, ($sp)
+
+neg,not
+    lw      $t0, 4($sp)
+    #op     $t0, $t0
+    sw      $t0, 4($sp)
+
+eq/gt/lt
+    lw      $t0, 8($sp)
+    lw      $t1, 4($sp)
+    #op     $t0, $t1, file_name_#i
+    li      $t0, -1
+file_name_#i:
+    li      $t0, 0
+    addi    $sp, $sp, 4
+    sw      $t0, ($sp)
+
+end_of_program
+    li      $v0, 10
+    syscall
+
+
+Static
+.data
+temp:   0:7
+static: 0:240
