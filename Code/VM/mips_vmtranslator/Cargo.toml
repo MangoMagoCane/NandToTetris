@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 indoc = "2"
-extend_enum_derive = { path = "extend_enum_derive" }
+tokenize_enum_derive = { path = "tokenize_enum_derive" }

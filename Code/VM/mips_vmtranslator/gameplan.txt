@@ -84,7 +84,6 @@ end_of_program
     li      $v0, 10
     syscall
 
-
 Static
 .data
 temp:   0:7

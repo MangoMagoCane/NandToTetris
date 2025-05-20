@@ -2,14 +2,14 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::Data;
 
-#[proc_macro_derive(ExtendEnum)]
-pub fn extend_enum_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(TokenizeEnum)]
+pub fn tokenize_enum_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
-    // println!("{:#?}", ast);
-    impl_extend_enum_macro(&ast)
+
+    impl_tokenize_enum_macro(&ast)
 }
 
-fn impl_extend_enum_macro(ast: &syn::DeriveInput) -> TokenStream {
+fn impl_tokenize_enum_macro(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let str_name = name.to_string();
     let Data::Enum(data) = &ast.data else {
@@ -44,6 +44,5 @@ fn impl_extend_enum_macro(ast: &syn::DeriveInput) -> TokenStream {
         }
     };
 
-    // println!("{}", gen_code);
     gen_code.into()
 }

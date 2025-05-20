@@ -302,7 +302,7 @@ void compileLet()
     Token *identifier_p = copyToken(NULL, curr_token);
     VariableSymtabEntry *entry_p = lookupSymtabEntry(curr_token->var_val);
     if (entry_p == NULL) {
-        fprintf(stderr, "ERR: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
+        fprintf(stderr, "ERR compileLet: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
         exit(EXIT_FAILURE);
     }
     process(IDENTIFIER, NULL, MAND);
@@ -399,10 +399,10 @@ void compileDo()
     process(KEYWORD, DO, MAND);
     Token *identifier_p = copyToken(NULL, curr_token);
     VariableSymtabEntry *entry_p = lookupSymtabEntry(identifier_p->var_val);
-    if (entry_p == NULL) {
-        fprintf(stderr, "ERR: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
-        exit(EXIT_FAILURE);
-    }
+    // if (entry_p == NULL) {
+    //     fprintf(stderr, "ERR compileDo: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
+    //     exit(EXIT_FAILURE);
+    // }
 
     process(IDENTIFIER, NULL, MAND);
     if (process(SYMBOL, '(', OPTNL)) { // IDENTIFIER = subroutineName
@@ -507,10 +507,11 @@ void compileTerm()
     VariableSymtabEntry *entry_p = lookupSymtabEntry(identifier_p->var_val);
 
     if (process(IDENTIFIER, NULL, OPTNL)) {
-        if (entry_p == NULL) {
-            fprintf(stderr, "ERR: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
-            exit(EXIT_FAILURE);
-        }
+        // breaks with method calls
+        // if (entry_p == NULL) {
+        //     fprintf(stderr, "ERR compileTerm: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
+        //     exit(EXIT_FAILURE);
+        // }
         if (process(SYMBOL, '[', OPTNL)) { // IDENTIFIER = varName
             writeVariable(VM_PUSH, entry_p); // LOOK LATER
             compileExpression();
@@ -539,7 +540,7 @@ void compileTerm()
             process(SYMBOL, ')', MAND);
         } else { // IDENTIFIER = varName
             if (entry_p == NULL) {
-                fprintf(stderr, "ERR: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
+                fprintf(stderr, "ERR compileTerm 2: '%s' undeclared on line: %d\n", identifier_p->var_val, identifier_p->line_number);
                 exit(EXIT_FAILURE);
             }
             writeVariable(VM_PUSH, entry_p);

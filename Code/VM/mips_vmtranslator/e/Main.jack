@@ -1,0 +1,29 @@
+class Main {
+    function void main() {
+        var int i, e, prev;
+
+        let i = 0;
+        let e = 0;
+        let prev = -1;
+
+        while (i < 1000) {
+            let e = e + (100000000 / Main.fact(i));
+            let i = i + 1;
+            if (prev = e) {
+                let i = 1000;
+            } else {
+                do Output.printInt(e);
+            }
+            let prev = e;
+        }
+
+        return;
+    }
+
+    function int fact(int i) {
+        if (i < 2) {
+            return 1;
+        }
+        return i * Main.fact(i - 1);
+    }
+}

@@ -1,0 +1,55 @@
+class Main {
+    function void main() {
+        var int i;
+        let i = 1;
+
+        do Main.looping();
+        do Main.rec_iter();
+
+        while (i < 21) {
+            do Output.printInt(Main.rec(i));
+            let i = i + 1;
+        }
+        return;
+    }
+
+    function void rec(int i) {
+        if (i < 2) {
+            return i;
+        }
+        return Main.rec(i - 2) + Main.rec(i - 1);
+    }
+
+    function void looping() {
+        var int prev, next, temp, i;
+
+        let prev = 0;
+        let next = 1;
+        let i = 20;
+
+        while (i > 0) {
+            do Output.printInt(prev);
+            let temp = prev + next;
+            let prev = next;
+            let next = temp;
+            let i = i - 1;
+        }
+
+        return;
+    }
+
+    function void rec_iter() {
+        return Main.iter(0, 1, 20);
+    }
+
+    function void iter(int prev, int next, int i) {
+        if (i > 0) {
+            do Output.printInt(prev);
+            do Main.iter(next, prev + next, i - 1);
+        }
+        return;
+    }
+}
+
+
+}

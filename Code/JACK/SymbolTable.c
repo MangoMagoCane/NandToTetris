@@ -41,7 +41,8 @@ bool addSymtabEntry(VariableSymtabEntry *symtab_p, char *name_p, char *type_p, V
 }
 
 void resetSymtab(VariableSymtabEntry *symtab_p) {
-    memset(symtab_p, 0, sizeof (symtab_p));
+    // memset(symtab_p, 0, sizeof (symtab_p));
+    memset(symtab_p, 0, sizeof (symtab_p) * SYMTAB_LEN); // should probably be this?
 }
 
 VariableSymtabEntry *lookupSymtabEntry(char *name_p)

@@ -1,5 +1,5 @@
 [package]
-name = "extend_enum_derive"
+name = "tokenize_enum_derive"
 version = "0.1.0"
 edition = "2024"
 

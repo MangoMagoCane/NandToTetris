@@ -29,21 +29,26 @@ fn main() {
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut writer = VMWriter::new();
-    let buffer = File::create("foo.asm");
-    writer.output = Box::new(buffer.unwrap());
+
+    if !config.print_to_stdout {
+        let path = config.path;
+        let buffer = File::create(path.join(path.file_stem().unwrap()).with_extension("asm")).unwrap();
+        writer.output = Box::new(buffer);
+    }
 
     if config.path.is_file() {
-        writer.start_program()?;
         handle_file(&config.path, &mut writer)?;
-        writer.end_program()?;
     } else if config.path.is_dir() {
-        handle_path(&config.path, &mut writer)?;
+        handle_dir(&config.path, &mut writer)?;
     } else {
+        return Err("".into());
     }
+
     Ok(())
 }
 
-fn handle_file(path : &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>> {
+
+fn compile_file(path: &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(path)?;
     writer.set_file_name(path);
     for (i, tokens) in contents.lines()
@@ -67,14 +72,13 @@ fn handle_file(path : &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>
             },
             3 => {
                 let command = Command::from_str(tokens[0])?;
-                let segment = Segment::from_str(tokens[1])?;
-                let Ok(index) = tokens[2].parse::<u16>() else {
+                let Ok(index) = tokens[2].parse::<u32>() else {
                     return Err(format!("[line: {i}] Unparseable index.").into());
                 };
                 match command {
-                    Command::Function => writer.function(segment, index)?,
-                    Command::Call => writer.call(segment, index)?,
-                    _ => writer.push_pop(command, segment, index)?,
+                    Command::Function => writer.function(tokens[1], index)?,
+                    Command::Call => writer.call(tokens[1], index)?,
+                    _ => writer.push_pop(command, Segment::from_str(tokens[1])?, index)?,
                 }
             },
             _ => {
@@ -82,24 +86,67 @@ fn handle_file(path : &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>
             }
         }
     }
+
     Ok(())
 }
 
-fn handle_path(_path: &Path, _writer: &mut VMWriter) -> Result<(), Box<dyn Error>> {
+fn handle_file(file_path: &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>> {
+    if !file_path.ends_with(".vm") {
+        return Err("".into());
+    }
+
+    writer.start_program()?;
+    compile_file(file_path, writer)?;
+    writer.end_program()?;
+
     Ok(())
 }
 
+fn handle_dir(dir_path: &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>> {
+    writer.is_dir = true;
+
+    writer.start_program()?;
+    for entry in fs::read_dir(dir_path).unwrap() {
+        let Ok(entry) = entry else { continue };
+        let Ok(file_type) = entry.file_type() else { continue };
+        if !file_type.is_file() { continue }
+
+        let entry_path = entry.path();
+        match entry_path.extension() {
+            Some(ext) => if ext != "vm" { continue },
+            None => continue,
+        }
+
+        compile_file(&entry_path, writer)?;
+    }
+    writer.end_program()?;
+
+    Ok(())
+}
+
+#[derive(Debug)]
 struct Config<'a> {
     path: &'a Path,
+    print_to_stdout: bool
 }
 
 impl <'a> Config<'a> {
     fn build(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 2 {
+        let argc = args.len();
+        if argc < 2 {
             return Err("usage: ./mips_vmtranslator [file.vm, dir/]");
         }
 
         let path = Path::new(&args[1]);
-        Ok(Config { path })
+        let mut print_to_stdout = false;
+
+        for i in (3..argc) {
+            match args[i].as_str() {
+                "-p" => print_to_stdout = true,
+                _ => (),
+            }
+        }
+
+        Ok(Config { path, print_to_stdout })
     }
 }

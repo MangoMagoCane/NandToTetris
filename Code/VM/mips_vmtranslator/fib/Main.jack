@@ -1,0 +1,19 @@
+class Main {
+    function void main() {
+        var int i;
+        let i = 1;
+
+        while (i < 21) {
+            do Output.printInt(Main.rec(i));
+            let i = i + 1;
+        }
+        return;
+    }
+
+    function void rec(int i) {
+        if (i < 2) {
+            return i;
+        }
+        return Main.rec(i - 2) + Main.rec(i - 1);
+    }
+}
