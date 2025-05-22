@@ -1,4 +1,3 @@
-#![allow(warnings)]
 mod writers;
 
 use std::env;
@@ -50,7 +49,7 @@ fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
 fn compile_file(path: &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(path)?;
-    writer.set_file_name(path);
+    writer.set_file_name(path)?;
     for (i, tokens) in contents.lines()
                         .map(|s| s.split("//").next().unwrap().trim())
                         .filter(|s| !s.starts_with("//") && s.len() > 0)
@@ -68,7 +67,7 @@ fn compile_file(path: &Path, writer: &mut VMWriter) -> Result<(), Box<dyn Error>
             }
             2 => {
                 let command = Command::from_str(tokens[0])?;
-                writer.branching(command, tokens[1]);
+                writer.branching(command, tokens[1])?;
             },
             3 => {
                 let command = Command::from_str(tokens[0])?;
@@ -140,7 +139,7 @@ impl <'a> Config<'a> {
         let path = Path::new(&args[1]);
         let mut print_to_stdout = false;
 
-        for i in (3..argc) {
+        for i in 3..argc {
             match args[i].as_str() {
                 "-p" => print_to_stdout = true,
                 _ => (),

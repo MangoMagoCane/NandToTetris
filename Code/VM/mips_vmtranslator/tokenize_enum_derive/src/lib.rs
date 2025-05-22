@@ -17,7 +17,20 @@ fn impl_tokenize_enum_macro(ast: &syn::DeriveInput) -> TokenStream {
     };
 
     let cases = data.variants.iter();
-    let str_cases = cases.clone().map(|v| v.ident.to_string().to_lowercase().replace("_", "-"));
+    // let str_cases = cases.clone().map(|v| v.ident.to_string().to_lowercase().replace("_", "-"));
+    let str_cases = cases.clone().map(|v| {
+        let binding = v.ident.to_string();
+        let mut chars = binding.chars();
+        let mut s = String::from("");
+        s += &chars.next().unwrap().to_lowercase().to_string();
+        for c in chars {
+            if c.is_uppercase() {
+                s += "-";
+            }
+            s += &c.to_lowercase().to_string();
+        }
+        s
+    });
 
     let cases_2 = cases.clone();
     let str_cases_2 = str_cases.clone();

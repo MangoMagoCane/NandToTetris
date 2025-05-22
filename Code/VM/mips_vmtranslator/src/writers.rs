@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::io;
 use std::path::Path;
@@ -16,7 +15,6 @@ pub struct VMWriter {
     func_name: String,
     pub is_dir: bool,
     log_jmp_i: u32,
-    call_i: u32,
 }
 
 #[derive(Debug, TokenizeEnum)]
@@ -26,7 +24,7 @@ pub enum Command {
     Eq, Gt, Lt,
     And, Or, Not,
     Function, Call, Return,
-    Label, Goto, If_goto
+    Label, Goto, IfGoto
 }
 
 #[derive(Debug, TokenizeEnum)]
@@ -43,7 +41,6 @@ impl VMWriter {
             func_name: String::from("_$global$_"),
             is_dir: false,
             log_jmp_i: 0,
-            call_i: 0,
         }
     }
 
@@ -162,7 +159,7 @@ impl VMWriter {
             Goto => formatdoc! {"
                 \tj	{jmp_label}
             "},
-            If_goto => formatdoc! {"
+            IfGoto => formatdoc! {"
                 \taddi	$sp, $sp, 4
                 	lw	$t0, ($sp)
                 	bnez	$t0, {jmp_label}
@@ -291,7 +288,6 @@ impl VMWriter {
                         	sw	$t0, ($sp)
                         	subi	$sp, $sp, 4
                     "},
-                    _ => formatdoc! {""},
                 }
             },
             Pop => {
